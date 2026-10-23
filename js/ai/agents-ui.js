@@ -1,95 +1,149 @@
-// Live view of what the agents are doing: one card per step with its streamed reasoning,
-// logs, image attempts and scores.
-
+// Keep each step's DOM in place while it streams, so details, scroll and selected
+// text stay put while the agents report their progress.
 import { onRun, stop, runFor } from './replicate.js';
 import { state, onChange } from '../store.js';
 import { modelInfo } from './llm.js';
+import { icon } from '../icons.js';
 
 const AGENTS = {
-  eye: { name: 'Preparation', icon: '<circle cx="12" cy="12" r="3"/><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>' },
-  analyst: { name: 'Vision analyst', icon: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/>' },
-  ruler: { name: 'Measurer', icon: '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>' },
-  designer: { name: 'Shape designer', icon: '<path d="M12 3l2.4 5.6L20 11l-5.6 2.4L12 19l-2.4-5.6L4 11l5.6-2.4z"/>' },
-  critic: { name: 'Critic', icon: '<circle cx="11" cy="11" r="7"/><path d="M20.5 20.5L16 16M8 11l2 2 4-4"/>' },
+  eye: { name: 'Preparation', tone: 'preparation', icon: '<circle cx="12" cy="12" r="3"/><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>' },
+  analyst: { name: 'Vision analyst', tone: 'analyst', icon: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/>' },
+  ruler: { name: 'Measurer', tone: 'measurer', icon: '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>' },
+  designer: { name: 'Shape designer', tone: 'designer', icon: '<path d="m12 3 8 8-6 9-4-6-6-4zM10 14l4-3M4 20l6-6"/><circle cx="14" cy="10" r="1.5"/>' },
+  critic: { name: 'Critic', tone: 'critic', icon: '<circle cx="10.5" cy="10.5" r="7"/><path d="m20.5 20.5-5-5M7.5 10.5l2 2 4-4"/>' },
+  editor: { name: 'AI editor', tone: 'editor', icon: '<path d="m14 5 5 5M4 20l4.5-1L20 7.5a2.1 2.1 0 0 0-3-3L5.5 16zM12 20h8"/>' },
+  sketch: { name: 'Quick sketch', tone: 'sketch', icon: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M8 15l3-4 3 2 3-5"/>' },
 };
-const open = new Set();
-let root, pill, last = null, timer = 0;
-const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const svg = (body, cls = '') => `<svg viewBox="0 0 24 24" class="${cls}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+const chevron = svg('<path d="m9 5 7 7-7 7"/>', 'ag-chevron');
+const avatar = a => `<span class="ag-avatar ${a.tone}" title="${a.name}">${svg(a.icon)}</span>`;
+const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const dur = ms => { const n = Math.max(0, Math.round(ms / 1000)); return n < 60 ? n + 's' : Math.floor(n / 60) + 'm ' + n % 60 + 's'; };
+const kTok = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
+const statusLabel = s => ({ running: 'Working', done: 'Completed', error: 'Error', stopped: 'Stopped', skipped: 'Skipped' })[s] || s;
+const setText = (el, value) => { const text = String(value ?? ''); if (el.textContent !== text) el.textContent = text; };
+const setHtml = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
+let root, pill, last = null, timer = 0, mountedRun = null, actions, imageAction, deferred = false;
+const steps = new Map();
 
-let actions = {};
-const EMPTY = '<div class="ag-empty"><b>No AI work on this diagram yet.</b><p>Replicate an image or use Ask AI, and each agent shows its work here: what the analyst reads, the measurements, every shape the designer tries and how the critic closes the gap.</p></div>';
+function empty() {
+  mountedRun = null; steps.clear();
+  root.innerHTML = `<div class="ag-empty"><span class="ag-empty-mark">${icon('ai')}</span><h3>Your AI workspace</h3><p>Ask for a diagram or bring an image. Follow each agent's work here as it takes shape.</p><div class="ag-team">${['analyst', 'designer', 'critic'].map(k => `<div>${avatar(AGENTS[k])}<span>${AGENTS[k].name}</span></div>`).join('')}</div><button type="button" class="btn ag-ask" data-act="ask">${icon('ai')}Ask AI</button></div>`;
+  root.scrollTop = 0;
+  drawPill();
+}
 export function initAgents(el, { onImage, onAction, pillEl } = {}) {
-  actions = onAction || (() => {});
-  root = el; pill = pillEl;
-  root.innerHTML = EMPTY;
+  root = el; pill = pillEl; actions = onAction || (() => {}); imageAction = onImage;
+  root.classList.add('agent-panel'); empty();
   onRun(run => { if (run && run.docId === state.doc?.id) { last = run; draw(); } });
-  // each diagram shows its own latest run
-  onChange(what => { if (what === 'doc') { last = state.doc ? runFor(state.doc.id) : null; if (last) draw(); else { root.innerHTML = EMPTY; drawPill(); } } });
+  onChange(what => { if (what === 'doc') { last = state.doc ? runFor(state.doc.id) : null; if (last) draw(); else empty(); } });
   clearInterval(timer); timer = setInterval(() => { if (last?.status === 'running') draw(); }, 1000);
   root.addEventListener('click', e => {
-    const t = e.target.closest('[data-toggle]'); if (t) { const id = t.dataset.toggle; open.has(id) ? open.delete(id) : open.add(id); draw(); return; }
+    const activity = e.target.closest('[data-activity]');
+    if (activity) { const expanded = activity.getAttribute('aria-expanded') !== 'true'; activity.setAttribute('aria-expanded', expanded); root.querySelector('.ag-steps').hidden = !expanded; return; }
+    const toggle = e.target.closest('[data-step-toggle], [data-toggle]');
+    if (toggle) {
+      const isStep = toggle.hasAttribute('data-step-toggle'), item = steps.get(isStep ? toggle.dataset.stepToggle : toggle.dataset.toggle);
+      const target = item.querySelector(isStep ? '.ag-detail' : '.ag-reasoning');
+      target.hidden = !target.hidden; toggle.setAttribute('aria-expanded', !target.hidden);
+      if (!isStep) { item.reasoningTouched = true; toggle.querySelector('span').textContent = target.hidden ? 'Show reasoning' : 'Hide reasoning'; }
+      return;
+    }
     if (e.target.closest('[data-stop]')) { stop(); return; }
     const act = e.target.closest('[data-act]'); if (act) { actions(act.dataset.act); return; }
-    const im = e.target.closest('img[data-full]'); if (im && onImage) onImage(im.src, im.alt);
+    const im = e.target.closest('img[data-full]'); if (im && imageAction) imageAction(im.src, im.alt);
   });
+  document.addEventListener('selectionchange', () => { if (deferred && !hasSelection()) draw(); });
 }
-
-function spark(scores) {
-  if (scores.length < 2) return '';
-  const min = Math.min(...scores) - 2, max = Math.max(...scores, min + 5), W = 120, H = 30;
-  const pts = scores.map((s, i) => `${(i / (scores.length - 1)) * W},${H - (s - min) / (max - min) * H}`).join(' ');
-  return `<svg viewBox="-2 -2 ${W + 4} ${H + 4}" width="${W}" height="${H}" class="spark"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="2"/>${scores.map((s, i) => `<circle cx="${(i / (scores.length - 1)) * W}" cy="${H - (s - min) / (max - min) * H}" r="2.5" fill="currentColor"/>`).join('')}</svg>`;
+function hasSelection() {
+  const s = window.getSelection();
+  return s && !s.isCollapsed && (root.contains(s.anchorNode) || root.contains(s.focusNode));
 }
-const dur = ms => ms < 60000 ? Math.round(ms / 1000) + 's' : Math.floor(ms / 60000) + 'm ' + Math.round(ms % 60000 / 1000) + 's';
-
-const kTok = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
-// Output tokens still streaming (≈3.6 chars per token) priced at the step's model, so the cost moves live.
 function liveCost(run) {
   let est = 0;
   for (const s of run.steps) if (s.status === 'running' && s.outChars) est += s.outChars / 3.6 * modelInfo(s.model).out / 1e6;
-  return run.cost + est;
+  return (run.cost || 0) + est;
+}
+function elapsed(run) {
+  const end = run.status === 'running' ? Date.now() : Math.max(run.started, ...run.steps.map(s => s.ended || s.started));
+  return dur(end - run.started);
 }
 function drawPill() {
   if (!pill) return;
   const run = last;
   if (!run || run.status !== 'running') { pill.hidden = true; return; }
-  const s = run.steps.at(-1) || {};
-  const thinking = s.outChars && !s.text?.length ? 'thinking' : s.outChars ? 'writing' : 'starting';
+  const s = run.steps.findLast(s => s.status === 'running') || {};
+  const thinking = s.outChars && !s.text?.length ? 'Thinking' : s.outChars ? 'Writing' : 'Starting';
   pill.hidden = false;
-  pill.innerHTML = `<span class="spin"></span><b>${esc(s.title || run.title)}</b><small>${thinking} · ${dur(Date.now() - run.started)} · ~$${liveCost(run).toFixed(3)}</small>`;
+  setHtml(pill, `<span class="ag-pill-mark">${icon('ai')}</span><b>${esc(s.title || run.title)}</b><small>${thinking} · ${elapsed(run)} · ~$${liveCost(run).toFixed(3)}</small>`);
 }
-
+function spark(scores) {
+  if (scores.length < 2) return '';
+  const min = Math.min(...scores) - 2, max = Math.max(...scores, min + 5), w = 120, h = 28;
+  const x = i => i / (scores.length - 1) * w, y = s => h - (s - min) / (max - min) * h;
+  return `<svg viewBox="-3 -3 ${w + 6} ${h + 6}" class="spark" role="img" aria-label="Similarity scores: ${scores.join(', ')}"><polyline points="${scores.map((s, i) => `${x(i)},${y(s)}`).join(' ')}" fill="none" stroke="currentColor" stroke-width="1.6"/>${scores.map((s, i) => `<circle cx="${x(i)}" cy="${y(s)}" r="2" fill="currentColor"/>`).join('')}</svg>`;
+}
+function mount(run) {
+  mountedRun = run.id; steps.clear(); root.scrollTop = 0;
+  root.innerHTML = `<section class="ag-head ag-overview"><div class="ag-overview-top"><h3>Overview</h3><span class="ag-run-status"></span></div><div class="ag-run-heading"><span class="ag-ai-mark">${icon('ai')}</span><div><b class="ag-run-title"></b><span class="ag-current"></span></div></div><dl class="ag-metrics"><div><dt>Time</dt><dd class="ag-time"></dd></div><div><dt>Cost</dt><dd class="ag-cost"></dd></div><div class="ag-score-metric" hidden><dt>Similarity</dt><dd class="ag-score"></dd></div></dl><div class="ag-chart" hidden></div><button type="button" class="btn ag-stop" data-stop>${svg('<rect x="7" y="7" width="10" height="10" rx="2"/>')}Stop</button><p class="err ag-error" hidden></p></section><section class="ag-activity"><button type="button" class="ag-section-toggle" data-activity aria-expanded="true">${svg('<path d="M4 12h4l3-7 4 14 3-7h2"/>')}<span>Activity</span><small class="ag-count"></small>${chevron}</button><div class="ag-steps" role="list"></div></section><section class="ag-finish" hidden></section>`;
+}
+function createStep(s) {
+  const a = AGENTS[s.agent] || AGENTS.critic, el = document.createElement('article');
+  el.className = 'ag-step'; el.setAttribute('role', 'listitem');
+  el.innerHTML = `<button type="button" class="ag-row" data-step-toggle="${esc(s.id)}" aria-expanded="true">${avatar(a)}<span class="ag-t"><b class="ag-step-title"></b><small class="ag-step-meta"></small></span><span class="ag-step-state"></span>${chevron}</button><div class="ag-detail"><p class="ag-sum" hidden></p><div class="ag-pal" hidden></div><ul class="ag-log" hidden></ul><div class="ag-imgs" hidden></div><small class="ag-usage" hidden></small><div class="ag-reason" hidden><button type="button" class="ag-more" data-toggle="${esc(s.id)}" aria-expanded="true"><span>Hide reasoning</span>${chevron}</button><div class="ag-reasoning"><div class="ag-think"></div><div class="ag-out" hidden></div></div></div></div>`;
+  root.querySelector('.ag-steps').appendChild(el); steps.set(s.id, el); return el;
+}
+function drawStep(s) {
+  const el = steps.get(s.id) || createStep(s), a = AGENTS[s.agent] || AGENTS.critic, q = selector => el.querySelector(selector);
+  el.className = `ag-step ${s.status}`;
+  setText(q('.ag-step-title'), s.title);
+  const details = [a.name];
+  if (s.ended || s.status === 'running') details.push(dur((s.ended || Date.now()) - s.started));
+  if (s.cost) details.push('$' + s.cost.toFixed(3));
+  setText(q('.ag-step-meta'), details.join(' · '));
+  const status = q('.ag-step-state'); status.title = statusLabel(s.status); status.setAttribute('aria-label', statusLabel(s.status));
+  setHtml(status, s.status === 'done' ? svg('<path d="m5 12 4 4L19 6"/>') : s.status === 'running' ? '<i class="ag-live-dot"></i>' : svg(s.status === 'error' ? '<path d="M12 5v9M12 18h.01"/>' : '<path d="M6 12h12"/>'));
+  const summary = q('.ag-sum'); summary.hidden = !s.summary; setText(summary, s.summary);
+  const pal = q('.ag-pal'); pal.hidden = !s.palette?.length;
+  setHtml(pal, (s.palette || []).map(c => `<i style="background:${esc(c)}" title="${esc(c)}"></i>`).join(''));
+  const logs = q('.ag-log'); logs.hidden = !s.log?.length; setHtml(logs, (s.log || []).map(l => `<li>${esc(l)}</li>`).join(''));
+  const images = q('.ag-imgs'); images.hidden = !s.images?.length;
+  setHtml(images, (s.images || []).map(i => `<figure><img src="${esc(i.src)}" alt="${esc(i.label)}" data-full loading="lazy"><figcaption>${esc(i.label)}</figcaption></figure>`).join(''));
+  const reason = q('.ag-reason'); reason.hidden = !(s.thinking || s.text);
+  if (!el.reasoningTouched) {
+    const expanded = s.status === 'running';
+    q('.ag-reasoning').hidden = !expanded; q('.ag-more').setAttribute('aria-expanded', expanded);
+    setText(q('.ag-more span'), expanded ? 'Hide reasoning' : 'Show reasoning');
+  }
+  const thinking = q('.ag-think'), pinned = thinking.scrollHeight - thinking.scrollTop - thinking.clientHeight < 30, top = thinking.scrollTop;
+  setText(thinking, s.thinking || (s.status === 'running' ? 'Thinking…' : 'No reasoning was returned.'));
+  thinking.scrollTop = pinned ? thinking.scrollHeight : top;
+  const output = q('.ag-out'); output.hidden = !(s.status === 'running' && s.text?.length > 40);
+  setText(output, s.text?.length > 600 ? '…' + s.text.slice(-600) : s.text);
+  const usage = s.usage ? `Input ${kTok(s.usage.in)}${s.usage.cached ? ` + ${kTok(s.usage.cached)} cached` : ''} · Output ${kTok(s.usage.out)}` : s.outChars ? `~${kTok(s.outChars / 3.6)} output tokens` : '';
+  q('.ag-usage').hidden = !usage; setText(q('.ag-usage'), usage);
+}
 function draw() {
   drawPill();
-  const run = last; if (!root || !run) return;
-  const scroller = root.querySelector('.ag-steps'); const keepBottom = scroller && scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 40; const top = scroller ? scroller.scrollTop : 0;
-  const score = run.scores.length ? run.scores[run.scores.length - 1] : null;
-  let h = `<div class="ag-head"><div><b>${esc(run.title)}</b><span class="pill ${run.status}">${run.status}</span></div>
-    <div class="ag-meta"><span title="Cost so far (estimated while streaming)">${run.status === 'running' ? '~' : ''}$${(run.status === 'running' ? liveCost(run) : run.cost).toFixed(3)}</span><span>${dur((run.status === 'running' ? Date.now() : (run.steps.at(-1)?.ended || Date.now())) - run.started)}</span>${score != null ? `<span class="score">${score}<small>/100</small></span>` : ''}${spark(run.scores)}</div>
-    ${run.status === 'running' ? '<button class="btn danger" data-stop>Stop</button>' : ''}${run.error ? `<p class="err">${esc(run.error)}</p>` : ''}</div><div class="ag-steps">`;
-  for (const s of run.steps) {
-    const a = AGENTS[s.agent] || AGENTS.critic, isOpen = open.has(s.id) || (s.status === 'running' && !open.has('x' + s.id));
-    h += `<div class="ag-step ${s.status}"><div class="ag-row"><svg viewBox="0 0 24 24" class="ag-ic"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${a.icon}</g></svg><div class="ag-t"><b>${esc(s.title)}</b><small>${a.name}${s.cost ? ' · $' + s.cost.toFixed(3) : ''}${s.ended ? ' · ' + dur(s.ended - s.started) : s.status === 'running' ? ' · ' + dur(Date.now() - s.started) : ''}${s.usage ? ` · in ${kTok(s.usage.in)}${s.usage.cached ? ` + ${kTok(s.usage.cached)} cached` : ''} · out ${kTok(s.usage.out)}` : s.outChars ? ` · ~${kTok(s.outChars / 3.6)} out` : ''}</small></div><span class="dot ${s.status}"></span></div>`;
-    if (s.palette) h += `<div class="ag-pal">${s.palette.map(c => `<i style="background:${c}" title="${c}"></i>`).join('')}</div>`;
-    if (s.summary) h += `<p class="ag-sum">${esc(s.summary)}</p>`;
-    if (s.log.length) h += `<ul class="ag-log">${s.log.map(l => `<li>${esc(l)}</li>`).join('')}</ul>`;
-    if (s.images.length) h += `<div class="ag-imgs">${s.images.map(i => `<figure><img src="${i.src}" alt="${esc(i.label)}" data-full><figcaption>${esc(i.label)}</figcaption></figure>`).join('')}</div>`;
-    if (s.thinking || s.text) {
-      h += `<button class="ag-more" data-toggle="${s.id}">${open.has(s.id) ? 'Hide' : 'Show'} reasoning${s.tokens ? ` · ${s.tokens} tokens` : ''}</button>`;
-      if (open.has(s.id) || s.status === 'running') {
-        const think = s.thinking ? (s.status === 'running' && !open.has(s.id) ? s.thinking.slice(-700) : s.thinking) : '';
-        h += `<div class="ag-think">${think ? esc(think) : '<i>thinking…</i>'}${s.status === 'running' && s.text && s.text.length > 40 ? `<div class="ag-out">${esc(s.text.length > 600 ? '…' + s.text.slice(-600) : s.text)}</div>` : ''}</div>`;
-      }
-    }
-    h += '</div>';
-  }
-  if (run.finish && run.status === 'done') {
-    h += `<div class="ag-finish"><div class="ag-row"><svg viewBox="0 0 24 24" class="ag-ic ok"><g fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></g></svg><div class="ag-t"><b>${esc(run.finish.title)}</b><small>${dur((run.steps.at(-1)?.ended || Date.now()) - run.started)} · $${run.cost.toFixed(3)}</small></div></div><p>${esc(run.finish.text)}</p><div class="ag-acts">${run.finish.undo ? '<button class="btn" data-act="undo">Undo</button>' : ''}${run.finish.refine ? '<button class="btn" data-act="refine">Refine 1 more round</button>' : ''}<button class="btn" data-act="ask">Ask AI for a change</button></div></div>`;
-  }
-  h += '</div>';
-  root.innerHTML = h;
-  const sc = root.querySelector('.ag-steps');
-  const showEnd = run.status !== 'running' && !run.shownEnd;
-  if (showEnd) run.shownEnd = true;
-  if (sc) sc.scrollTop = keepBottom || run.status === 'running' || showEnd ? sc.scrollHeight : top;
+  if (!root || !last) return;
+  if (mountedRun === last.id && hasSelection()) { deferred = true; return; }
+  deferred = false;
+  const run = last, newRun = mountedRun !== run.id;
+  if (newRun) mount(run);
+  // The panel itself owns scrolling, rather than the nested activity list.
+  const top = root.scrollTop, follow = root.clientHeight > 0 && root.scrollHeight - top - root.clientHeight < 44, q = selector => root.querySelector(selector);
+  setText(q('.ag-run-title'), run.title);
+  const active = run.steps.findLast(s => s.status === 'running');
+  setText(q('.ag-current'), run.status === 'running' ? active ? AGENTS[active.agent]?.name || 'Working on your diagram' : 'Getting started' : statusLabel(run.status));
+  const status = q('.ag-run-status'); status.className = `ag-run-status ${run.status}`; setText(status, statusLabel(run.status));
+  setText(q('.ag-time'), elapsed(run)); setText(q('.ag-cost'), (run.status === 'running' ? '~' : '') + '$' + (run.status === 'running' ? liveCost(run) : run.cost || 0).toFixed(3));
+  const score = run.scores.at(-1); q('.ag-score-metric').hidden = score == null; setHtml(q('.ag-score'), score == null ? '' : `${score}<small>/100</small>`);
+  const chart = q('.ag-chart'); chart.hidden = run.scores.length < 2; setHtml(chart, spark(run.scores));
+  q('[data-stop]').hidden = run.status !== 'running';
+  const error = q('.ag-error'); error.hidden = !run.error; setText(error, run.error);
+  setText(q('.ag-count'), run.steps.length);
+  for (const step of run.steps) drawStep(step);
+  const finish = q('.ag-finish'); finish.hidden = !(run.finish && run.status === 'done');
+  if (!finish.hidden) setHtml(finish, `<div class="ag-finish-heading">${svg('<path d="m5 12 4 4L19 6"/>')}<b>${esc(run.finish.title)}</b></div><p>${esc(run.finish.text)}</p><div class="ag-acts">${run.finish.undo ? '<button type="button" class="btn" data-act="undo">Undo</button>' : ''}${run.finish.refine ? `<button type="button" class="btn ag-ask" data-act="refine">${icon('ai')}Refine one more round</button>` : ''}<button type="button" class="btn ag-ask" data-act="ask">${icon('ai')}Ask AI for a change</button></div>`);
+  root.scrollTop = follow && !newRun ? root.scrollHeight : top;
 }

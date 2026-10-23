@@ -419,7 +419,7 @@ export async function refine({ rounds = 1, instructions = '', style = '' } = {})
       await refineLoop(run, doc, view, encode(view), rounds, '');
       run.finish = { title: 'Refine finished', text: `Similarity ${run.first} → ${run.final}. ${run.stopReason || ''}`, undo: true, refine: true };
     } else {
-      const st = step(run, 'critic', 'Editing: ' + instructions.slice(0, 60));
+      const st = step(run, 'editor', 'Editing: ' + instructions.slice(0, 60));
       const before = await renderToCanvas(doc);
       st.images.push({ label: 'before', src: before.toDataURL() });
       const real = doc.elements.filter(e => !e.ghost).length;
@@ -444,12 +444,16 @@ export async function refine({ rounds = 1, instructions = '', style = '' } = {})
 
 // Fast, cheap layout sketch (small model, low effort): labelled boxes shown as ghosts.
 async function quickSketch(run, doc, instructions) {
-  const st = { thinking: '', text: '' };
-  const res = await complete({ role: 'sketch', system: 'You sketch diagram layouts. Reply with JSON only: {"boxes": [{"x": 0, "y": 0, "w": 100, "h": 60, "label": "short label"}]} with 6 to 30 boxes that block out the main areas and items of the requested diagram on the page, aligned on a grid. No prose.', content: [{ type: 'text', text: `Page ${doc.page.w} × ${doc.page.h} px. Diagram: ${instructions}` }], signal: run.ctl.signal, maxTokens: 3000, ...meter(st, 'sketch') });
-  charge(run, res);
-  if (run.sketchDone || run.opsStarted) return;
-  const out = extractJson(res.text);
-  if (Array.isArray(out.boxes)) showGhosts(doc, out.boxes.slice(0, 40).map(b => ({ x: +b.x || 0, y: +b.y || 0, w: Math.max(10, +b.w || 0), h: Math.max(10, +b.h || 0), label: String(b.label || '').slice(0, 40) })));
+  const st = step(run, 'sketch', 'Sketching the layout');
+  try {
+    const res = await complete({ role: 'sketch', system: 'You sketch diagram layouts. Reply with JSON only: {"boxes": [{"x": 0, "y": 0, "w": 100, "h": 60, "label": "short label"}]} with 6 to 30 boxes that block out the main areas and items of the requested diagram on the page, aligned on a grid. No prose.', content: [{ type: 'text', text: `Page ${doc.page.w} × ${doc.page.h} px. Diagram: ${instructions}` }], signal: run.ctl.signal, maxTokens: 3000, ...meter(st, 'sketch') });
+    charge(run, res, st);
+    if (!run.sketchDone && !run.opsStarted) {
+      const out = extractJson(res.text);
+      if (Array.isArray(out.boxes)) showGhosts(doc, out.boxes.slice(0, 40).map(b => ({ x: +b.x || 0, y: +b.y || 0, w: Math.max(10, +b.w || 0), h: Math.max(10, +b.h || 0), label: String(b.label || '').slice(0, 40) })));
+    }
+    done(st);
+  } catch (e) { done(st, e.code === 'aborted' ? 'stopped' : 'skipped', e.message); throw e; }
 }
 
 // Style guide from a template: page, fonts and the most common looks, as compact text.

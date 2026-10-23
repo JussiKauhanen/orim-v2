@@ -20,6 +20,8 @@ The Agents tab shows every step live: streamed reasoning, measurements, each des
 
 Afterwards it is an ordinary diagram: move, resize, rotate, recolour, retype, duplicate, delete; drag from a shape's blue dots to connect (ends attach and follow); click a dot to add a connected copy; drag the line's middle to bend it; switch connectors between straight, curved, elbow and spline. **Refine** runs another critic round, **Ask AI** applies a change you describe.
 
+The **Overview** minimap shows the page, its contents, and the current viewport. Click or drag it to navigate, or focus it and use the arrow keys. It can be collapsed. When a dragged element reaches a canvas edge, the view follows and gently zooms out. Night mode adapts plain light pages and neutral shapes on screen; saved diagrams, exports, source comparison, and AI scoring retain their original colours.
+
 ## The library grows
 
 - `library/kinds/*.json` — built-in kinds: basic and flowchart shapes, containers, wireframe parts, line icons, and the official Azure, Power Platform and Dynamics 365 icons (from `old/`, see `old/THIRD_PARTY_NOTICES.md`).
@@ -30,9 +32,17 @@ Kinds are plain JSON with a parametric SVG template — see [docs/kinds.md](docs
 
 ## Models
 
-Settings takes an Anthropic API key (kept in this browser, sent only to the API) and lets you choose the model and effort per agent (default Claude Opus 5.5) and a budget per run. Requests use streaming, adaptive thinking with summarised reasoning (shown in the Agents tab), prompt caching of the system prompt plus catalogue, and server-side refusal fallback. OpenAI and Google are listed in the provider menu but not wired up yet; `js/ai/llm.js` has the one function a provider needs.
+Settings supports **Anthropic Claude, OpenAI, and Google Gemini**. Choose a provider, add its API key, then choose the model and effort for each agent. Keys and model choices are remembered separately for each provider in this browser; keys are sent only to that provider's API. Switching providers in Settings takes effect when you save.
+
+All three providers stream text and reasoning summaries into the Agents tab, support image input and cancellation, and report usage against the per-run budget. Effort is mapped to each provider's supported levels. Claude retains adaptive thinking, prompt caching, and server-side refusal fallback. The budget is checked after completed requests, so concurrent shape designs can exceed it. Model prices shown in Settings are estimates per million tokens; actual availability and charges depend on the provider and account.
 
 Open the app with `?mock` to run the whole pipeline with simulated model replies (it only knows the sample images). Useful for working on the UI without spending credits.
+
+Run the provider request/streaming checks without API keys or paid calls:
+
+```bash
+node --test tests/llm.test.mjs
+```
 
 ## Templates
 
@@ -40,7 +50,7 @@ Open the app with `?mock` to run the whole pipeline with simulated model replies
 
 ## Files
 
-- `js/` — editor (`editor.js`, `inspector.js`, `palette.js`), model (`store.js`, `kinds.js`, `render.js`, `geom.js`, `text.js`, `expr.js`), library (`library.js`)
+- `js/` — editor (`editor.js`, `inspector.js`, `palette.js`, `minimap.js`), model (`store.js`, `kinds.js`, `render.js`, `geom.js`, `text.js`, `expr.js`), library (`library.js`), shared SVG controls (`icons.js`) and screen-only colours (`theme.js`)
 - `js/ai/` — `llm.js` (providers), `prompts.js`, `replicate.js` (pipeline), `vision.js` (measuring and scoring), `raster.js`, `agents-ui.js`, `mock.js`
 - `tools/` — `serve.py` (no-cache dev server), `make-templates.mjs`, `make-icons.mjs`, `import-ms-icons.mjs`, `dev.js` (console helpers: measure a sample, score a template)
 - `old/` — the previous Mermaid-based orim, kept for reference

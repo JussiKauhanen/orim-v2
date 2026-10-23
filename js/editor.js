@@ -6,6 +6,8 @@ import { elementSvg, pageSvg, indexDoc } from './render.js';
 import { getKind, scopeFor, textBox } from './kinds.js';
 import { bounds, unionBounds, toLocal, toWorld, connectorPoints, endpoint, distToPoly, rotatePt } from './geom.js';
 import { onFontsChanged, ensureFont, fontStack } from './text.js';
+import { initMinimap } from './minimap.js';
+import { displayDoc } from './theme.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 export const cam = { x: 0, y: 0, z: 1 };
@@ -31,11 +33,14 @@ export function initEditor(root) {
   window.addEventListener('keydown', onKey);
   window.addEventListener('keyup', e => { if (e.code === 'Space') { spaceDown = false; svg.style.cursor = ''; } });
   window.addEventListener('resize', () => applyCamera());
+  window.addEventListener('blur', onUp);
+  window.addEventListener('themechange', () => { render(); placeTextEd(); });
   textEd.addEventListener('blur', commitText);
   textEd.addEventListener('keydown', e => { if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) { e.preventDefault(); textEd.blur(); } e.stopPropagation(); });
   textEd.addEventListener('input', sizeTextEd);
-  onChange(what => { if (what === 'doc') { nodes.clear(); content.innerHTML = ''; fitPage(); } render(); });
+  onChange(what => { if (what === 'doc') { stopEdgeTracking(); nodes.clear(); content.innerHTML = ''; fitPage(); } render(); });
   onFontsChanged(() => { nodes.clear(); content.innerHTML = ''; render(); });
+  initMinimap(stage, { cam, view, applyCamera, onViewChanged, beforeNavigate: stopEdgeTracking });
 }
 
 // ---------- camera ----------
@@ -45,6 +50,7 @@ export function applyCamera() {
   drawOverlay(); placeTextEd(); viewChanged();
 }
 export function fitPage(pad = 40) {
+  stopEdgeTracking();
   if (!state.doc || !stage) return;
   const r = stage.getBoundingClientRect(); if (!r.width) return;
   const p = state.doc.page;
@@ -54,6 +60,7 @@ export function fitPage(pad = 40) {
   applyCamera();
 }
 export function zoomBy(f, sx, sy) {
+  stopEdgeTracking();
   const r = svg.getBoundingClientRect();
   if (sx == null) { sx = r.width / 2; sy = r.height / 2; }
   const wx = sx / cam.z + cam.x, wy = sy / cam.z + cam.y;
@@ -72,8 +79,9 @@ function keyOf(el, doc) {
 }
 let editingId = null;
 export function render() {
-  const doc = state.doc; if (!doc || !content) return;
-  indexDoc(doc);
+  if (!state.doc || !content) return;
+  indexDoc(state.doc);
+  const doc = displayDoc(state.doc, view.mode === 'diagram');
   pageLayer.innerHTML = pageSvg(doc);
   const seen = new Set(); let prev = null;
   for (const el of doc.elements) {
@@ -236,10 +244,52 @@ function insideSelection(wx, wy) {
 }
 const isMidVertical = g => { const p = g.pts; const i = Math.floor((p.length - 1) / 2); const a = p[i], b = p[i + 1] || a; return Math.abs(a[0] - b[0]) < 0.5; };
 
-function bind() { svg.addEventListener('pointermove', onMove); svg.addEventListener('pointerup', onUp, { once: true }); svg.addEventListener('pointercancel', onUp, { once: true }); }
+function bind() {
+  svg.addEventListener('pointermove', onMove);
+  svg.addEventListener('pointerup', onUp);
+  svg.addEventListener('pointercancel', onUp);
+  svg.addEventListener('lostpointercapture', onUp);
+}
 
-function onMove(e) {
+// Keep a drag moving in world coordinates while the camera follows an edge push.
+const EDGE_MODES = new Set(['move', 'resize', 'mresize', 'connect', 'cend', 'cpt', 'elbow']);
+let edgeFrame = 0, edgePointer = null, edgeSince = 0, edgeLast = 0, edgeZoom = 1;
+function stopEdgeTracking() {
+  cancelAnimationFrame(edgeFrame);
+  edgeFrame = 0; edgePointer = null; edgeSince = 0; edgeLast = 0;
+}
+function trackEdge(e) {
+  if (!EDGE_MODES.has(drag.type)) return;
+  edgePointer = { clientX: e.clientX, clientY: e.clientY, shiftKey: e.shiftKey, altKey: e.altKey };
+  if (!edgeFrame) edgeFrame = requestAnimationFrame(edgeTick);
+}
+function edgeTick(now) {
+  edgeFrame = 0;
+  if (!drag || !edgePointer || !EDGE_MODES.has(drag.type) || ((drag.type === 'move' || drag.type === 'connect') && !drag.moved)) return stopEdgeTracking();
+  const r = svg.getBoundingClientRect();
+  if (!r.width || !r.height || document.hidden) return stopEdgeTracking();
+  const x = edgePointer.clientX - r.left, y = edgePointer.clientY - r.top;
+  const margin = Math.min(56, r.width / 4, r.height / 4);
+  const push = (v, size) => Math.max(-1.5, Math.min(1.5, v < margin ? (v - margin) / margin : v > size - margin ? (v - size + margin) / margin : 0));
+  const fx = push(x, r.width), fy = push(y, r.height);
+  if (!fx && !fy) return stopEdgeTracking();
+  if (!edgeSince) { edgeSince = now; edgeZoom = cam.z; }
+  const dt = Math.min(32, edgeLast ? now - edgeLast : 16) / 1000; edgeLast = now;
+  cam.x += fx * 650 * dt / cam.z; cam.y += fy * 650 * dt / cam.z;
+  // Zoom around the grab point, so the element stays under the pointer.
+  if (now - edgeSince > 500) {
+    const wx = cam.x + x / cam.z, wy = cam.y + y / cam.z;
+    cam.z = Math.max(0.05, edgeZoom * 0.6, cam.z * Math.exp(-0.35 * dt));
+    cam.x = wx - x / cam.z; cam.y = wy - y / cam.z;
+  }
+  applyCamera();
+  onMove(edgePointer, true);
+  edgeFrame = requestAnimationFrame(edgeTick);
+}
+
+function onMove(e, fromEdge = false) {
   if (!drag) return;
+  if (!fromEdge) trackEdge(e);
   const [wx, wy] = toW(e); const doc = state.doc;
   switch (drag.type) {
     case 'pan': cam.x = drag.cx - (e.clientX - drag.sx) / cam.z; cam.y = drag.cy - (e.clientY - drag.sy) / cam.z; applyCamera(); return;
@@ -369,11 +419,16 @@ function snapMove(b, dx, dy, exclude) {
 }
 
 function onUp(e) {
+  stopEdgeTracking();
   svg.removeEventListener('pointermove', onMove);
+  svg.removeEventListener('pointerup', onUp);
+  svg.removeEventListener('pointercancel', onUp);
+  svg.removeEventListener('lostpointercapture', onUp);
+  const cancelled = e.type !== 'pointerup';
   const d = drag; drag = null; guides = []; svg.style.cursor = spaceDown ? 'grab' : '';
   if (!d) return;
   if (d.type === 'marquee') {
-    if (marquee) {
+    if (marquee && !cancelled) {
       const [x0, y0, x1, y1] = marquee, r = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
       const ids = state.doc.elements.filter(el => { if (el.hidden) return false; const b = bounds(el, state.doc); return b.x >= r.x && b.y >= r.y && b.x + b.w <= r.x + r.w && b.y + b.h <= r.y + r.h; }).map(el => el.id);
       select(ids, d.add);
@@ -382,7 +437,7 @@ function onUp(e) {
   }
   if (d.type === 'connect') {
     connectTarget = null;
-    if (!d.moved) { quickAdd(d.from); endChange(); return; }
+    if (!d.moved) { if (!cancelled) quickAdd(d.from); endChange(); return; }
     if (d.c) { lastRoute = d.c.route; if (!d.c.to.id) { /* free end: fine */ } }
     endChange(); return;
   }
@@ -390,7 +445,7 @@ function onUp(e) {
   if (d.type === 'pan') { drawOverlay(); return; }
   endChange();
   // a plain click on the shape that was already selected edits its text in place
-  if (d.type === 'move' && !d.moved && d.clickEdit) editText(d.clickEdit);
+  if (d.type === 'move' && !d.moved && d.clickEdit && !cancelled) editText(d.clickEdit);
 }
 
 // Click on a dot: add a copy of the shape on that side, connected.
@@ -425,6 +480,7 @@ const defaultFont = () => { const t = state.doc.elements.find(e => e.text && e.t
 
 function onWheel(e) {
   e.preventDefault();
+  stopEdgeTracking();
   const r = svg.getBoundingClientRect();
   if (e.ctrlKey || e.metaKey) zoomBy(Math.exp(-e.deltaY * 0.0022), e.clientX - r.left, e.clientY - r.top);
   else { cam.x += e.deltaX / cam.z; cam.y += e.deltaY / cam.z; applyCamera(); }
@@ -467,10 +523,11 @@ export function editText(id) {
 }
 function placeTextEd() {
   if (!textEd || textEd.hidden) return;
-  const el = state.doc && state.doc.byId.get(textEd.dataset.id); if (!el) return;
+  const doc = state.doc && displayDoc(state.doc, view.mode === 'diagram');
+  const el = doc && doc.byId.get(textEd.dataset.id); if (!el) return;
   let box, t;
   if (el.kind === 'connector') {
-    const g = connectorPoints(el, state.doc); t = { size: 14, color: el.style.stroke, align: 'center', ...el.text };
+    const g = connectorPoints(el, doc); t = { size: 14, color: el.style.stroke, align: 'center', ...el.text };
     box = { x: g.mid[0] - 100, y: g.mid[1] - 20, w: 200, h: 40 };
   } else {
     const kind = getKind(el.kind) || getKind('text'); const sc = scopeFor(el, kind); const tb = textBox(el, kind, sc);

@@ -9,22 +9,29 @@ import { sceneSvg, indexDoc } from './render.js';
 import { ensureFont } from './text.js';
 import { initAgents } from './ai/agents-ui.js';
 import { replicate, refine, onRun, current, stop, styleGuide } from './ai/replicate.js';
-import { settings, saveSettings, PROVIDERS, hasKey, mockMode } from './ai/llm.js';
+import { settings, saveSettings, PROVIDERS, defaultRoleModels, hasKey, mockMode } from './ai/llm.js';
 import { getKind, removeKind } from './kinds.js';
 import { svgWithFonts, renderToCanvas } from './ai/raster.js';
+import { icon, welcomeDoodle } from './icons.js';
+import { displayDoc } from './theme.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 let askStyle = null;
-function applyTheme() { let t = 'light'; try { t = localStorage.getItem('orim.theme') || 'light'; } catch (_) {} document.documentElement.dataset.theme = t; }
+function applyTheme() {
+  let t = 'light'; try { t = localStorage.getItem('orim.theme') || 'light'; } catch (_) {}
+  document.documentElement.dataset.theme = t;
+  for (const b of document.querySelectorAll('.themeBtn')) b.setAttribute('aria-label', t === 'dark' ? 'Switch to day mode' : 'Switch to night mode');
+  window.dispatchEvent(new Event('themechange'));
+}
 function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(t._t); t._t = setTimeout(() => t.hidden = true, ms); }
 
 // ---------- thumbnails ----------
 function thumb(doc, w = 260, h = 170) {
   const d = indexDoc(clone(doc));
   for (const e of d.elements) if (e.text?.font) ensureFont(e.text.font);
-  const svg = sceneSvg(d);
+  const svg = sceneSvg(displayDoc(d));
   return svg.replace(/^<svg ([^>]*?)width="[^"]*" height="[^"]*"/, `<svg $1width="100%" height="100%" preserveAspectRatio="xMidYMid meet"`);
 }
 
@@ -66,11 +73,6 @@ function updateWelcome() {
   const w = $('#welcome'); if (!w || !state.doc) return;
   const blank = !state.doc.elements.length && !state.doc.source && !(current?.status === 'running' && current.docId === state.doc.id);
   w.hidden = !blank || welcomeDismissed;
-  if (!w.hidden && !w.dataset.ready) {
-    const t = lib.templates.find(x => x.id === 'sketch-decision');
-    w.querySelector('.ill').innerHTML = t ? thumb(t.doc) : '';
-    w.dataset.ready = '1';
-  }
 }
 
 async function startFromImage(src, name) {
@@ -110,7 +112,7 @@ function updateTop() {
   $('#undoBtn').disabled = !canUndo(); $('#redoBtn').disabled = !canRedo();
   const hasSrc = !!state.doc.source;
   $('#srcCtl').hidden = !hasSrc;
-  $('#replicateBtn').textContent = hasSrc ? (state.doc.elements.length ? 'Re-replicate' : 'Replicate') : 'Replicate image…';
+  $('#replicateBtn').innerHTML = icon('ai') + (hasSrc ? (state.doc.elements.length ? 'Re-replicate' : 'Replicate') : 'Replicate image…');
   $('#refineBtn').hidden = !hasSrc || !state.doc.elements.length;
   syncView();
 }
@@ -124,25 +126,43 @@ function showSide(which) {
 }
 
 // ---------- settings ----------
-function openSettings() {
-  const s = settings(), dlg = $('#setDlg'), P = PROVIDERS[s.provider];
-  $('#setProvider').innerHTML = Object.entries(PROVIDERS).map(([k, p]) => `<option value="${k}"${p.disabled ? ' disabled' : ''}>${p.name}</option>`).join('');
+const ROLES = ['analyst', 'designer', 'critic', 'editor', 'sketch'];
+let settingsDraft = null;
+function providerFields() {
+  const s = settingsDraft, P = PROVIDERS[s.provider];
   $('#setProvider').value = s.provider;
   $('#setKey').value = s.keys[s.provider] || ''; $('#setKey').placeholder = P.keyHint || '';
   $('#setKeyLink').href = P.console || '#';
-  for (const r of ['analyst', 'designer', 'critic', 'editor', 'sketch']) {
-    $('#setM-' + r).innerHTML = P.models.map(m => `<option value="${m.id}">${m.name} · $${m.in}/$${m.out}</option>`).join('');
-    $('#setM-' + r).value = s.roles[r]; $('#setE-' + r).value = s.effort[r];
+  const roles = s.providerRoles[s.provider] || defaultRoleModels(s.provider);
+  for (const r of ROLES) {
+    $('#setM-' + r).innerHTML = P.models.map(m => `<option value="${esc(m.id)}">${esc(m.name)} · $${m.in}/$${m.out}</option>`).join('');
+    $('#setM-' + r).value = P.models.some(m => m.id === roles[r]) ? roles[r] : defaultRoleModels(s.provider)[r];
+    $('#setE-' + r).value = s.effort[r];
   }
+}
+function captureSettings() {
+  const s = settingsDraft;
+  s.keys[s.provider] = $('#setKey').value.trim();
+  s.providerRoles[s.provider] = Object.fromEntries(ROLES.map(r => [r, $('#setM-' + r).value]));
+  for (const r of ROLES) s.effort[r] = $('#setE-' + r).value;
+  s.iterations = +$('#setIter').value; s.designAttempts = +$('#setAttempts').value; s.measure = $('#setMeasure').checked; s.budget = +$('#setBudget').value;
+}
+function openSettings({ preserve = false } = {}) {
+  if (!preserve || !settingsDraft) {
+    settingsDraft = clone(settings());
+    settingsDraft.providerRoles = { ...settingsDraft.providerRoles, [settingsDraft.provider]: { ...settingsDraft.roles } };
+  }
+  const s = settingsDraft, dlg = $('#setDlg');
+  $('#setProvider').innerHTML = Object.entries(PROVIDERS).map(([k, p]) => `<option value="${k}">${esc(p.name)}</option>`).join('');
+  providerFields();
   $('#setIter').value = s.iterations; $('#setAttempts').value = s.designAttempts; $('#setMeasure').checked = s.measure; $('#setBudget').value = s.budget;
-  $('#folderRow').innerHTML = folderSupported() ? (lib.folder ? `Connected to <b>${esc(lib.folderName)}</b> <button class="btn" id="folderSync">Write library now</button> <button class="btn" id="folderOff">Disconnect</button>` : `<button class="btn" id="folderOn">Connect project folder…</button>`) : 'Your browser cannot write to folders (use Chrome or Edge on a computer). Use Export library instead.';
-  dlg.showModal();
+  $('#folderRow').innerHTML = folderSupported() ? (lib.folder ? `Connected to <b>${esc(lib.folderName)}</b> <button class="btn" type="button" id="folderSync">Write library now</button> <button class="btn" type="button" id="folderOff">Disconnect</button>` : `<button class="btn" type="button" id="folderOn">Connect project folder…</button>`) : 'Your browser cannot write to folders (use Chrome or Edge on a computer). Use Export library instead.';
+  if (!dlg.open) dlg.showModal();
 }
 function saveSettingsForm() {
-  const s = settings();
-  s.provider = $('#setProvider').value; s.keys[s.provider] = $('#setKey').value.trim();
-  for (const r of ['analyst', 'designer', 'critic', 'editor', 'sketch']) { s.roles[r] = $('#setM-' + r).value; s.effort[r] = $('#setE-' + r).value; }
-  s.iterations = +$('#setIter').value; s.designAttempts = +$('#setAttempts').value; s.measure = $('#setMeasure').checked; s.budget = +$('#setBudget').value;
+  if (!$('#setDlg form').reportValidity()) return;
+  captureSettings();
+  const s = settingsDraft; s.roles = { ...s.providerRoles[s.provider] };
   saveSettings(s); $('#setDlg').close(); toast('Settings saved'); $('#keyNote').hidden = hasKey();
 }
 
@@ -167,10 +187,11 @@ async function exportAs(kind) {
 // ---------- boot ----------
 async function boot() {
   applyTheme();
+  for (const el of document.querySelectorAll('[data-icon]')) el.innerHTML = icon(el.dataset.icon);
   initEditor($('#stage'));
   const pill = document.createElement('div'); pill.id = 'aiPill'; pill.hidden = true; $('#stage').appendChild(pill);
   const welcome = document.createElement('div'); welcome.id = 'welcome'; welcome.hidden = true;
-  welcome.innerHTML = `<div class="card"><div class="ill"></div><h2>A blank canvas</h2><p>Sketch it yourself with shapes, let AI draw it from a description, or start from a picture of a diagram.</p><div class="acts"><button class="btn" data-w="draw">✏️ Draw with shapes</button><button class="btn primary" data-w="ask">✦ Ask AI to draw it</button><button class="btn" data-w="replicate">🖼 Replicate an image</button><button class="btn" data-w="templates">▦ Start from a template</button></div></div>`;
+  welcome.innerHTML = `<div class="card"><div class="ill">${welcomeDoodle()}</div><h2>A blank canvas. A little possibility.</h2><p>Start with a shape, an idea, or a picture.<br>Make it yours from there.</p><div class="acts"><button class="welcome-action draw" data-w="draw">${icon('draw')}<span>Draw with shapes</span></button><button class="welcome-action ask" data-w="ask">${icon('ai')}<span>Ask AI to draw it</span></button><button class="welcome-action replicate" data-w="replicate">${icon('ai')}<span>Replicate an image</span></button><button class="welcome-action templates" data-w="templates">${icon('templates')}<span>Start from a template</span></button></div></div>`;
   $('#stage').appendChild(welcome);
   welcome.addEventListener('click', e => {
     const b = e.target.closest('[data-w]'); if (!b) return;
@@ -238,7 +259,7 @@ async function boot() {
     state.doc = null; // otherwise showHome saves the last open diagram back
     showHome();
   });
-  for (const b of document.querySelectorAll('.themeBtn')) b.addEventListener('click', () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('orim.theme', t); } catch (_) {} applyTheme(); });
+  for (const b of document.querySelectorAll('.themeBtn')) b.addEventListener('click', () => { const t = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'; try { localStorage.setItem('orim.theme', t); } catch (_) {} applyTheme(); if (!$('#home').hidden) showHome(); });
   $('#homeSettings').addEventListener('click', openSettings);
   $('#homeLibrary').addEventListener('click', openLibrary);
 
@@ -261,7 +282,7 @@ async function boot() {
     $('#askIn').value = '';
     const blank = state.doc.elements.length < 3;
     $('#askStyleWrap').hidden = !blank; askStyle = null;
-    $('#askDlg h2').textContent = blank ? 'Ask AI to draw a diagram' : 'Ask AI to change the diagram';
+    $('#askDlg h2').innerHTML = icon('ai') + (blank ? 'Ask AI to draw a diagram' : 'Ask AI to change the diagram');
     $('#askIn').placeholder = blank ? 'e.g. lead flow from our website chat through Azure into Dynamics 365, one column per system' : 'e.g. make all connectors dashed and add a legend at the bottom';
     if (blank) $('#askStyles').innerHTML = `<button class="tp none on" data-tp=""><div class="th">No preference</div><span>Let the AI choose</span></button>` + lib.templates.map(t => `<button class="tp" data-tp="${esc(t.id)}"><div class="th">${thumb(t.doc)}</div><span>${esc(t.name)}</span></button>`).join('');
     $('#askDlg').showModal(); $('#askIn').focus();
@@ -284,10 +305,10 @@ async function boot() {
 
   // dialogs
   $('#setSave').addEventListener('click', e => { e.preventDefault(); saveSettingsForm(); });
-  $('#setProvider').addEventListener('change', () => { const s = settings(); s.provider = $('#setProvider').value; saveSettings(s); openSettings(); });
+  $('#setProvider').addEventListener('change', () => { const next = $('#setProvider').value; captureSettings(); settingsDraft.provider = next; providerFields(); });
   $('#setDlg').addEventListener('click', async e => {
-    if (e.target.id === 'folderOn') { try { await connectFolder(); toast('Folder connected — learned shapes and lessons are written to its library/'); openSettings(); } catch (_) {} }
-    if (e.target.id === 'folderOff') { await disconnectFolder(); openSettings(); }
+    if (e.target.id === 'folderOn') { try { captureSettings(); await connectFolder(); toast('Folder connected — learned shapes and lessons are written to its library/'); openSettings({ preserve: true }); } catch (_) {} }
+    if (e.target.id === 'folderOff') { captureSettings(); await disconnectFolder(); openSettings({ preserve: true }); }
     if (e.target.id === 'folderSync') { const n = await syncAllToFolder(); toast(`Wrote ${n} items to the folder`); }
   });
   $('#libDlg').addEventListener('click', async e => {

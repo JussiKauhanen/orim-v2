@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/agents.css">
+<link rel="stylesheet" href="css/navigation.css">
 </head>
 <body>
 
@@ -28,8 +30,8 @@
         <span>Agents rebuild it as an editable diagram that matches the original — shapes, colours, fonts, lines. Shapes it does not know yet are designed and added to the library.</span>
         <input type="file" id="fileIn" accept="image/*" hidden>
       </div>
-      <p id="keyNote" class="note" hidden>Add your Claude API key in <a href="#" onclick="document.getElementById('homeSettings').click();return false">Settings</a> to replicate images. Templates and the editor work without it.</p>
-      <div class="hero-actions"><button class="btn" id="newBlank">New blank diagram</button><span id="libStats" class="muted"></span></div>
+      <p id="keyNote" class="note" hidden>Add an API key in <a href="#" onclick="document.getElementById('homeSettings').click();return false">Settings</a> to use Claude, OpenAI, or Gemini. Templates and the editor work without it.</p>
+      <div class="hero-actions"><button class="btn" id="newBlank"><span data-icon="draw"></span>New blank diagram</button><span id="libStats" class="muted"></span></div>
     </section>
     <h3>Templates</h3>
     <div id="homeTemplates" class="cards"></div>
@@ -47,16 +49,16 @@
     <button class="ib" id="undoBtn" title="Undo (⌘Z)"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
     <button class="ib" id="redoBtn" title="Redo (⇧⌘Z)"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
     <div class="sep"></div>
-    <button class="ib" id="zoomOut" title="Zoom out">−</button><button class="ib wide" id="zoomFit" title="Fit (⌘0)">Fit</button><button class="ib" id="zoomIn" title="Zoom in">+</button>
+    <button class="ib" id="zoomOut" title="Zoom out" aria-label="Zoom out" data-icon="minus"></button><button class="ib wide" id="zoomFit" title="Fit (⌘0)">Fit</button><button class="ib" id="zoomIn" title="Zoom in" aria-label="Zoom in" data-icon="plus"></button>
     <div id="srcCtl" class="srcctl" hidden>
       <div class="seg" id="viewSeg"><button data-view="diagram" title="Your editable diagram (V)">Diagram</button><button data-view="source" title="The original image you replicated (V)">Original</button><button data-view="both" title="Original laid over the diagram to compare">Compare</button></div>
       <input type="range" id="blendSlider" min="0.1" max="0.9" step="0.05" title="How much of the original shows through" hidden>
     </div>
     <div class="grow"></div>
     <span id="mockBadge" class="pill running" title="Model calls are simulated (?mock)" hidden>mock AI</span>
-    <button class="btn ghost" id="askBtn" title="Describe a change for the AI">Ask AI</button>
-    <button class="btn ghost" id="refineBtn" title="One more critic round against the source">Refine</button>
-    <button class="btn primary" id="replicateBtn">Replicate</button>
+    <button class="btn ghost ai-button" id="askBtn" title="Describe a change for the AI"><span data-icon="ai"></span>Ask AI</button>
+    <button class="btn ghost ai-button" id="refineBtn" title="One more critic round against the source"><span data-icon="ai"></span>Refine</button>
+    <button class="btn ai-button ai-primary" id="replicateBtn">Replicate</button>
     <div class="menuwrap"><button class="btn ghost" id="exportBtn">Export ▾</button>
       <div id="exportMenu" class="menu" hidden><button data-export="png">PNG image (2×)</button><button data-export="svg">SVG (fonts embedded)</button><button data-export="json">Diagram file (.json)</button><hr><button data-export="template">Save as template</button></div></div>
     <button class="ib" id="libraryBtn" title="Library"><svg viewBox="0 0 24 24"><path d="M4 19V5M9 19V5M14 19l-2-14M19 19l-4-13"/></svg></button>
@@ -66,7 +68,7 @@
   <aside id="palette" class="palette"></aside>
   <main id="stage" class="stage"></main>
   <aside class="side">
-    <div class="tabs"><button data-side="inspect" class="on">Properties</button><button data-side="agents">Agents</button></div>
+    <div class="tabs"><button data-side="inspect" class="on">Properties</button><button data-side="agents"><span data-icon="ai"></span>Agents</button></div>
     <div id="inspector" class="inspector"></div>
     <div id="agents" class="agents" hidden></div>
   </aside>
@@ -75,7 +77,7 @@
 <!-- DIALOGS -->
 <dialog id="repDlg" class="dlg">
   <form method="dialog">
-    <h2>Replicate this image</h2>
+    <h2><span data-icon="ai"></span>Replicate this image</h2>
     <div class="rep-grid"><img id="repPreview" alt=""><div>
       <label class="f wide"><span>Instructions (optional)</span><textarea id="repInstr" rows="3" placeholder="e.g. use Inter for all text, the arrows are curved"></textarea></label>
       <label class="f wide"><span>Critic rounds</span><input type="number" id="repIter" min="0" max="10"></label>
@@ -83,7 +85,7 @@
       <label class="chk"><input type="checkbox" id="repDiagramOnly"> Diagram only (skip app UI and toolbars around it)</label>
       <p id="repKeyWarn" class="err" hidden>Add an API key in Settings first.</p>
     </div></div>
-    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" id="repGo">Replicate</button></div>
+    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn ai-primary" id="repGo"><span data-icon="ai"></span>Replicate</button></div>
   </form>
 </dialog>
 
@@ -91,7 +93,7 @@
   <form method="dialog"><h2>Ask AI to change the diagram</h2>
     <textarea id="askIn" rows="3" placeholder="e.g. make all connectors dashed and add a legend at the bottom"></textarea>
     <div id="askStyleWrap" hidden><span class="muted small">Style to follow (optional) — pick a template and the AI matches its look</span><div id="askStyles" class="tpl-pick"></div></div>
-    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" id="askGo">Apply</button></div></form>
+    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn ai-primary" id="askGo"><span data-icon="ai"></span>Apply</button></div></form>
 </dialog>
 
 <dialog id="setDlg" class="dlg">
@@ -107,7 +109,7 @@
       <tr><td>Critic</td><td><select id="setM-critic"></select></td><td><select id="setE-critic"><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></td></tr>
       <tr><td>Ask AI editor</td><td><select id="setM-editor"></select></td><td><select id="setE-editor"><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></td></tr>
       <tr><td>Quick sketch</td><td><select id="setM-sketch"></select></td><td><select id="setE-sketch"><option>low</option><option>medium</option><option>high</option></select></td></tr></table>
-    <p class="muted small">Reasoning counts as output tokens, the expensive kind. Medium effort is usually enough for the critic and editor; Sonnet 5.5 costs half of Opus.</p>
+    <p class="muted small">Model prices show input/output dollars per million tokens. Medium effort is usually enough for the critic and editor; each provider uses its closest supported effort level.</p>
     <div class="grid2"><label class="f"><span>Critic rounds</span><input type="number" id="setIter" min="0" max="10"></label><label class="f"><span>Designer attempts per shape</span><input type="number" id="setAttempts" min="1" max="6"></label></div>
     <div class="grid2"><label class="f"><span>Budget per run ($)</span><input type="number" id="setBudget" min="0" step="0.5"></label><label class="chk"><input type="checkbox" id="setMeasure"> Snap boxes and colours to the pixels</label></div>
     <h4>Library folder</h4>
