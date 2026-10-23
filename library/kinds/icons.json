@@ -1,0 +1,2498 @@
+[
+ {
+  "id": "user",
+  "name": "Person",
+  "category": "icons",
+  "tags": [
+   "profile",
+   "account",
+   "people"
+  ],
+  "description": "person icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='8' r='4'/><path d='M4 21c0-4.4 3.6-8 8-8s8 3.6 8 8'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "users",
+  "name": "People",
+  "category": "icons",
+  "tags": [
+   "team",
+   "group",
+   "users",
+   "people"
+  ],
+  "description": "people icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='9' cy='8' r='3.5'/><path d='M2.5 20c0-3.6 2.9-6.5 6.5-6.5s6.5 2.9 6.5 6.5'/><path d='M16 4.6a3.5 3.5 0 0 1 0 6.8M18 13.8c2.1.7 3.5 2.9 3.5 6.2'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "database",
+  "name": "Database",
+  "category": "icons",
+  "tags": [
+   "db",
+   "sql",
+   "storage",
+   "data"
+  ],
+  "description": "database icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><ellipse cx='12' cy='5.5' rx='8' ry='3' fill='{fill}'/><path d='M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13' fill='{fill}'/><path d='M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "server",
+  "name": "Server",
+  "category": "icons",
+  "tags": [
+   "host",
+   "rack",
+   "backend"
+  ],
+  "description": "server icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3.5' width='18' height='7' rx='2' fill='{fill}'/><rect x='3' y='13.5' width='18' height='7' rx='2' fill='{fill}'/><path d='M7 7h.01M7 17h.01'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "cloud-icon",
+  "name": "Cloud",
+  "category": "icons",
+  "tags": [
+   "cloud",
+   "saas",
+   "hosting"
+  ],
+  "description": "cloud icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M7 19h10.5a4.5 4.5 0 0 0 .6-8.96A6 6 0 0 0 6.4 9.2 5 5 0 0 0 7 19z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "lightbulb",
+  "name": "Light bulb",
+  "category": "icons",
+  "tags": [
+   "idea",
+   "insight",
+   "innovation"
+  ],
+  "description": "light bulb icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M9 18h6M10 21h4'/><path d='M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1 2V16h5.2v-.2c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "gear",
+  "name": "Gear",
+  "category": "icons",
+  "tags": [
+   "settings",
+   "cog",
+   "config",
+   "process"
+  ],
+  "description": "gear icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='3'/><path d='M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1'/><circle cx='12' cy='12' r='6.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "globe",
+  "name": "Globe",
+  "category": "icons",
+  "tags": [
+   "web",
+   "internet",
+   "world",
+   "global"
+  ],
+  "description": "globe icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9' fill='{fill}'/><path d='M3 12h18M12 3c2.5 2.5 3.8 5.5 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.5-3.8-9S9.5 5.5 12 3z'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "chat",
+  "name": "Chat bubble",
+  "category": "icons",
+  "tags": [
+   "message",
+   "conversation",
+   "talk",
+   "comment"
+  ],
+  "description": "chat bubble icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "chats",
+  "name": "Two chat bubbles",
+  "category": "icons",
+  "tags": [
+   "messages",
+   "conversation",
+   "social"
+  ],
+  "description": "two chat bubbles icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M14.5 9.5a6 6 0 0 0-11.2 3l-1 3.5 3.5-1a6 6 0 0 0 8.7-5.5z' fill='{fill}'/><path d='M10 17a6 6 0 0 0 8.7 2l3.3.9-1-3.3A6 6 0 0 0 17 8.6'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "calendar",
+  "name": "Calendar",
+  "category": "icons",
+  "tags": [
+   "date",
+   "schedule",
+   "event",
+   "plan"
+  ],
+  "description": "calendar icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='3.5' y='5' width='17' height='15.5' rx='2' fill='{fill}'/><path d='M3.5 10h17M8 3v4M16 3v4'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "cart",
+  "name": "Shopping cart",
+  "category": "icons",
+  "tags": [
+   "shop",
+   "ecommerce",
+   "buy",
+   "basket"
+  ],
+  "description": "shopping cart icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M3 4h2.5l2.2 11h10.6l2.2-8H6.6'/><circle cx='9.5' cy='19.5' r='1.5'/><circle cx='17' cy='19.5' r='1.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "megaphone",
+  "name": "Megaphone",
+  "category": "icons",
+  "tags": [
+   "announce",
+   "marketing",
+   "campaign",
+   "loud"
+  ],
+  "description": "megaphone icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M3 10v4a1 1 0 0 0 1 1h2l5 4V5L6 9H4a1 1 0 0 0-1 1z' fill='{fill}'/><path d='M15 8.5a5 5 0 0 1 0 7M18 5.5a9 9 0 0 1 0 13'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "chart-bar",
+  "name": "Bar chart",
+  "category": "icons",
+  "tags": [
+   "analytics",
+   "stats",
+   "growth",
+   "metrics"
+  ],
+  "description": "bar chart icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20h16'/><rect x='5' y='11' width='3' height='7' fill='{fill}'/><rect x='10.5' y='7' width='3' height='11' fill='{fill}'/><rect x='16' y='4' width='3' height='14' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "chart-line",
+  "name": "Line chart",
+  "category": "icons",
+  "tags": [
+   "trend",
+   "growth",
+   "analytics"
+  ],
+  "description": "line chart icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M3 3v18h18'/><path d='M7 15l4-4 3 3 6-7'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "mobile",
+  "name": "Mobile phone",
+  "category": "icons",
+  "tags": [
+   "phone",
+   "smartphone",
+   "app"
+  ],
+  "description": "mobile phone icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='6.5' y='2.5' width='11' height='19' rx='2.5' fill='{fill}'/><path d='M11 18.5h2'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "monitor",
+  "name": "Monitor",
+  "category": "icons",
+  "tags": [
+   "desktop",
+   "screen",
+   "computer",
+   "pc"
+  ],
+  "description": "monitor icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='2.5' y='4' width='19' height='13' rx='2' fill='{fill}'/><path d='M8 21h8M12 17v4'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "laptop",
+  "name": "Laptop",
+  "category": "icons",
+  "tags": [
+   "computer",
+   "notebook",
+   "device"
+  ],
+  "description": "laptop icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='5' width='16' height='11' rx='1.5' fill='{fill}'/><path d='M2 19h20'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "devices",
+  "name": "Devices",
+  "category": "icons",
+  "tags": [
+   "laptop",
+   "phone",
+   "clients",
+   "endpoints"
+  ],
+  "description": "devices icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='2' y='4' width='14' height='10' rx='1.5' fill='{fill}'/><path d='M4.5 18h9'/><rect x='17' y='8' width='5' height='11' rx='1' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "document-icon",
+  "name": "Document",
+  "category": "icons",
+  "tags": [
+   "file",
+   "page",
+   "doc",
+   "report"
+  ],
+  "description": "document icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z' fill='{fill}'/><path d='M14 3v5h5M9 13h6M9 17h6'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "folder",
+  "name": "Folder",
+  "category": "icons",
+  "tags": [
+   "directory",
+   "files"
+  ],
+  "description": "folder icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V18a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "image-icon",
+  "name": "Picture",
+  "category": "icons",
+  "tags": [
+   "image",
+   "photo",
+   "media"
+  ],
+  "description": "picture icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='16' rx='2' fill='{fill}'/><circle cx='8.5' cy='9.5' r='1.8'/><path d='M21 16l-5-5L5 20'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "mail",
+  "name": "Envelope",
+  "category": "icons",
+  "tags": [
+   "email",
+   "mail",
+   "message",
+   "newsletter"
+  ],
+  "description": "envelope icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='5' width='18' height='14' rx='2' fill='{fill}'/><path d='M3.5 6.5l8.5 6.5 8.5-6.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "search",
+  "name": "Magnifier",
+  "category": "icons",
+  "tags": [
+   "search",
+   "find",
+   "zoom"
+  ],
+  "description": "magnifier icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='7'/><path d='M20.5 20.5l-4.5-4.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "bell",
+  "name": "Bell",
+  "category": "icons",
+  "tags": [
+   "notification",
+   "alert"
+  ],
+  "description": "bell icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z' fill='{fill}'/><path d='M10 21h4'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "lock",
+  "name": "Padlock",
+  "category": "icons",
+  "tags": [
+   "security",
+   "lock",
+   "private"
+  ],
+  "description": "padlock icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='4.5' y='10.5' width='15' height='10.5' rx='2' fill='{fill}'/><path d='M8 10.5V7.5a4 4 0 0 1 8 0v3'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "key",
+  "name": "Key",
+  "category": "icons",
+  "tags": [
+   "secret",
+   "vault",
+   "credential",
+   "access"
+  ],
+  "description": "key icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='7.5' cy='15.5' r='4.5'/><path d='M10.7 12.3L20 3M16 7l3 3M18 5l2 2'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "shield",
+  "name": "Shield",
+  "category": "icons",
+  "tags": [
+   "security",
+   "protection",
+   "firewall"
+  ],
+  "description": "shield icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l8 3v6c0 5-3.5 8-8 9.5C7.5 20 4 17 4 12V6z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "bolt",
+  "name": "Lightning bolt",
+  "category": "icons",
+  "tags": [
+   "power",
+   "fast",
+   "energy",
+   "function"
+  ],
+  "description": "lightning bolt icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M13 2.5L4.5 13.5H12L11 21.5l8.5-11H12z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "clock",
+  "name": "Clock",
+  "category": "icons",
+  "tags": [
+   "time",
+   "schedule",
+   "timer"
+  ],
+  "description": "clock icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9' fill='{fill}'/><path d='M12 7v5l3.5 2'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "heart",
+  "name": "Heart",
+  "category": "icons",
+  "tags": [
+   "like",
+   "love",
+   "favourite"
+  ],
+  "description": "heart icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7a4.3 4.3 0 0 1 7.5 2.8C19.5 15.4 12 20 12 20z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "star-icon",
+  "name": "Star",
+  "category": "icons",
+  "tags": [
+   "rating",
+   "favourite"
+  ],
+  "description": "star icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 16.8l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "check-circle",
+  "name": "Check",
+  "category": "icons",
+  "tags": [
+   "done",
+   "ok",
+   "success",
+   "tick"
+  ],
+  "description": "check icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9' fill='{fill}'/><path d='M8 12.5l2.7 2.7L16.5 9.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "flag",
+  "name": "Flag",
+  "category": "icons",
+  "tags": [
+   "milestone",
+   "goal",
+   "report"
+  ],
+  "description": "flag icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M5 21V4M5 4h11l-2 4 2 4H5' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "home",
+  "name": "House",
+  "category": "icons",
+  "tags": [
+   "home",
+   "start"
+  ],
+  "description": "house icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M3.5 11L12 4l8.5 7M6 9.5V20h12V9.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "link",
+  "name": "Link",
+  "category": "icons",
+  "tags": [
+   "chain",
+   "url",
+   "connect"
+  ],
+  "description": "link icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1'/><path d='M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "code",
+  "name": "Code brackets",
+  "category": "icons",
+  "tags": [
+   "developer",
+   "code",
+   "api",
+   "dev"
+  ],
+  "description": "code brackets icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M8.5 7L3.5 12l5 5M15.5 7l5 5-5 5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "cpu",
+  "name": "Chip",
+  "category": "icons",
+  "tags": [
+   "cpu",
+   "compute",
+   "processor",
+   "hardware"
+  ],
+  "description": "chip icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='6' y='6' width='12' height='12' rx='1.5' fill='{fill}'/><path d='M9 2.5v3.5M15 2.5v3.5M9 18v3.5M15 18v3.5M2.5 9h3.5M2.5 15h3.5M18 9h3.5M18 15h3.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "sparkle",
+  "name": "Sparkle",
+  "category": "icons",
+  "tags": [
+   "ai",
+   "magic",
+   "new",
+   "shine"
+  ],
+  "description": "sparkle icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l1.8 5.4L19 10l-5.2 1.6L12 17l-1.8-5.4L5 10l5.2-1.6z' fill='{fill}'/><path d='M19 16l.7 2.1 2.1.7-2.1.7-.7 2.1-.7-2.1-2.1-.7 2.1-.7z'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "thumbs-up",
+  "name": "Thumbs up",
+  "category": "icons",
+  "tags": [
+   "like",
+   "approve",
+   "vote"
+  ],
+  "description": "thumbs up icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M7 10v11H4V10zM7 10l4-7.5c1.7 0 2.6 1.3 2.3 3L12.8 9H19a2 2 0 0 1 2 2.3l-1.3 7.5A2.6 2.6 0 0 1 17.1 21H7'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "rocket",
+  "name": "Rocket",
+  "category": "icons",
+  "tags": [
+   "launch",
+   "start",
+   "deploy",
+   "growth"
+  ],
+  "description": "rocket icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M14 4c3-1.5 6-1.5 6-1.5s0 3-1.5 6L13 14l-3-3z' fill='{fill}'/><path d='M10 11l-4-.5L3.5 13l4 1M13 14l.5 4L11 20.5l-1-4M7 17c-1.5.5-2.5 2-2.5 4 2 0 3.5-1 4-2.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "target",
+  "name": "Target",
+  "category": "icons",
+  "tags": [
+   "goal",
+   "aim",
+   "objective",
+   "focus"
+  ],
+  "description": "target icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><circle cx='12' cy='12' r='5'/><circle cx='12' cy='12' r='1.2'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "layers",
+  "name": "Layers",
+  "category": "icons",
+  "tags": [
+   "stack",
+   "levels",
+   "tiers"
+  ],
+  "description": "layers icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3l9 5-9 5-9-5z' fill='{fill}'/><path d='M3 13l9 5 9-5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "play",
+  "name": "Play",
+  "category": "icons",
+  "tags": [
+   "video",
+   "start",
+   "media"
+  ],
+  "description": "play icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><circle cx='12' cy='12' r='9'/><path d='M10 8.5v7l6-3.5z' fill='{stroke}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "pin",
+  "name": "Map pin",
+  "category": "icons",
+  "tags": [
+   "location",
+   "place",
+   "map"
+  ],
+  "description": "map pin icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M12 21s-6.5-6.2-6.5-11a6.5 6.5 0 0 1 13 0c0 4.8-6.5 11-6.5 11z' fill='{fill}'/><circle cx='12' cy='10' r='2.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "tag",
+  "name": "Tag",
+  "category": "icons",
+  "tags": [
+   "label",
+   "price",
+   "category"
+  ],
+  "description": "tag icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M3 12.5V4a1 1 0 0 1 1-1h8.5L21 11.5 12.5 20z' fill='{fill}'/><circle cx='7.5' cy='7.5' r='1.3'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "warning",
+  "name": "Warning",
+  "category": "icons",
+  "tags": [
+   "alert",
+   "caution",
+   "risk"
+  ],
+  "description": "warning icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M12 3.5L2.5 20h19z' fill='{fill}'/><path d='M12 10v4.5M12 17.3h.01'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "pencil",
+  "name": "Pencil",
+  "category": "icons",
+  "tags": [
+   "edit",
+   "write",
+   "draw"
+  ],
+  "description": "pencil icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20l1-4.5L16 4.5l3.5 3.5L8.5 19z' fill='{fill}'/><path d='M14 6.5l3.5 3.5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "trash",
+  "name": "Bin",
+  "category": "icons",
+  "tags": [
+   "delete",
+   "remove",
+   "trash"
+  ],
+  "description": "bin icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M4 6.5h16M9 6.5V4h6v2.5M6 6.5l1 14h10l1-14'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "cursor",
+  "name": "Mouse pointer",
+  "category": "icons",
+  "tags": [
+   "cursor",
+   "arrow",
+   "click",
+   "pointer"
+  ],
+  "description": "mouse pointer icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M5 3l6 17 2.4-7.1L20.5 10.5z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "comment",
+  "name": "Comment",
+  "category": "icons",
+  "tags": [
+   "note",
+   "feedback",
+   "annotation"
+  ],
+  "description": "comment icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M4 5h16v11H10l-4 3.5V16H4z' fill='{fill}'/><path d='M8 9h8M8 12.5h8'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "wifi",
+  "name": "Wifi",
+  "category": "icons",
+  "tags": [
+   "wireless",
+   "network",
+   "signal"
+  ],
+  "description": "wifi icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.5 16a5 5 0 0 1 7 0'/><circle cx='12' cy='19.5' r='.8' fill='{stroke}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "queue",
+  "name": "Queue",
+  "category": "icons",
+  "tags": [
+   "messages",
+   "buffer",
+   "list",
+   "stack"
+  ],
+  "description": "queue icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='4' width='18' height='4' rx='1' fill='{fill}'/><rect x='3' y='10' width='18' height='4' rx='1' fill='{fill}'/><rect x='3' y='16' width='18' height='4' rx='1' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "api",
+  "name": "Plug",
+  "category": "icons",
+  "tags": [
+   "api",
+   "integration",
+   "connector",
+   "plugin"
+  ],
+  "description": "plug icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M9 3v4M15 3v4M7 7h10v4a5 5 0 0 1-10 0z' fill='{fill}'/><path d='M12 16v5'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "puzzle",
+  "name": "Puzzle piece",
+  "category": "icons",
+  "tags": [
+   "integration",
+   "module",
+   "extension",
+   "plugin"
+  ],
+  "description": "puzzle piece icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M5 7h3.5a2 2 0 1 1 4 0H16v3.5a2 2 0 1 1 0 4V18h-3.5a2 2 0 1 0-4 0H5v-3.5a2 2 0 1 0 0-4z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "filter",
+  "name": "Funnel",
+  "category": "icons",
+  "tags": [
+   "filter",
+   "sales",
+   "pipeline"
+  ],
+  "description": "funnel icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M3 4h18l-7 8.5V19l-4 2v-8.5z' fill='{fill}'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "arrow-right",
+  "name": "Arrow",
+  "category": "icons",
+  "tags": [
+   "next",
+   "forward",
+   "direction"
+  ],
+  "description": "arrow icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M4 12h16M14 6l6 6-6 6'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "refresh",
+  "name": "Refresh",
+  "category": "icons",
+  "tags": [
+   "sync",
+   "cycle",
+   "loop",
+   "update"
+  ],
+  "description": "refresh icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M20 11a8 8 0 0 0-14.6-4.5L4 8M4 4v4h4M4 13a8 8 0 0 0 14.6 4.5L20 16M20 20v-4h-4'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "bar-steps",
+  "name": "Steps",
+  "category": "icons",
+  "tags": [
+   "levels",
+   "signal",
+   "progress"
+  ],
+  "description": "steps icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round' stroke-linejoin='round'><path d='M4 20V15M9.3 20v-8M14.6 20V8M20 20V4'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "cube-3d",
+  "name": "Isometric cube",
+  "category": "icons",
+  "tags": [
+   "service",
+   "container",
+   "pod",
+   "microservice",
+   "azure",
+   "box"
+  ],
+  "description": "Shaded isometric cube (fill = side colour; top lighter, right darker). Common for services/pods in cloud diagrams.",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "#3aa0e8",
+   "stroke": "none",
+   "strokeWidth": 0
+  },
+  "svg": "<path d='M12 2.5l8.5 4.8L12 12 3.5 7.3z' fill='{shade(fill,0.35)}'/><path d='M3.5 7.3L12 12v9.5l-8.5-4.8z' fill='{fill}'/><path d='M20.5 7.3L12 12v9.5l8.5-4.8z' fill='{shade(fill,-0.25)}'/>{#if stroke!='none'}<path d='M12 2.5l8.5 4.8v9.4L12 21.5l-8.5-4.8V7.3zM3.5 7.3L12 12l8.5-4.7M12 12v9.5' fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linejoin='round'/>{/if}",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "k8s-wheel",
+  "name": "Helm wheel",
+  "category": "icons",
+  "tags": [
+   "kubernetes",
+   "k8s",
+   "cluster",
+   "helm",
+   "orchestration"
+  ],
+  "description": "Heptagon badge with a ship wheel (Kubernetes-style). fill = badge colour, stroke = wheel colour.",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "#326ce5",
+   "stroke": "#ffffff",
+   "strokeWidth": 1.4
+  },
+  "svg": "<path d='M12 1.5l7.9 3.8 2 8.6-5.5 6.8H7.6l-5.5-6.8 2-8.6z' fill='{fill}'/><g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round'><circle cx='12' cy='12' r='4'/>{#repeat i 7}<path d='M{12+1.6*sin(i*2*PI/7)},{12-1.6*cos(i*2*PI/7)} L{12+6.8*sin(i*2*PI/7)},{12-6.8*cos(i*2*PI/7)}'/>{/repeat}</g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
+ },
+ {
+  "id": "flower",
+  "name": "Flower",
+  "category": "decor",
+  "tags": [
+   "petals",
+   "blossom",
+   "asterisk",
+   "decoration",
+   "figma"
+  ],
+  "description": "Rounded flower / blob-asterisk with n petals (fill = petal colour).",
+  "size": [
+   120,
+   120
+  ],
+  "viewBox": [
+   0,
+   0,
+   100,
+   100
+  ],
+  "aspect": "none",
+  "params": {
+   "n": {
+    "type": "number",
+    "default": 8,
+    "min": 3,
+    "max": 16,
+    "step": 1,
+    "label": "Petals"
+   },
+   "petal": {
+    "type": "number",
+    "default": 0.42,
+    "min": 0.1,
+    "max": 0.8,
+    "step": 0.01,
+    "label": "Petal size"
+   }
+  },
+  "style": {
+   "fill": "#111111",
+   "stroke": "none",
+   "strokeWidth": 0
+  },
+  "svg": "<g fill='{fill}' stroke='{stroke}' stroke-width='{vsw}'>{#repeat i n}<ellipse cx='{50+28*sin(i*2*PI/n)}' cy='{50-28*cos(i*2*PI/n)}' rx='{50*petal*0.62}' ry='{50*petal}' transform='rotate({i*360/n},{50+28*sin(i*2*PI/n)},{50-28*cos(i*2*PI/n)})'/>{/repeat}<circle cx='50' cy='50' r='30'/></g>",
+  "textBox": [
+   "w*0.25",
+   "h*0.25",
+   "w*0.5",
+   "h*0.5"
+  ],
+  "outline": "ellipse"
+ },
+ {
+  "id": "atom",
+  "name": "Atom",
+  "category": "decor",
+  "tags": [
+   "science",
+   "orbit",
+   "react",
+   "physics"
+  ],
+  "description": "Atom: three crossing elliptical orbits with dots",
+  "size": [
+   120,
+   120
+  ],
+  "viewBox": [
+   0,
+   0,
+   100,
+   100
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#111111",
+   "strokeWidth": 6
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}'><ellipse cx='50' cy='50' rx='46' ry='17' transform='rotate(45 50 50)'/><ellipse cx='50' cy='50' rx='46' ry='17' transform='rotate(-45 50 50)'/></g><g fill='{stroke}'><circle cx='17' cy='17' r='{rawSw*0.9}'/><circle cx='66' cy='34' r='{rawSw*0.9}'/><circle cx='33' cy='83' r='{rawSw*0.9}'/><circle cx='83' cy='83' r='{rawSw*0.9}'/></g>",
+  "textBox": [
+   "0",
+   "h+4",
+   "w",
+   "24"
+  ]
+ }
+]

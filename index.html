@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>orim · replicate</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%234f6bff'/%3E%3Crect x='7' y='8' width='9' height='7' rx='2' fill='white'/%3E%3Crect x='16' y='18' width='9' height='7' rx='2' fill='white'/%3E%3Cpath d='M16 11.5h4.5v6.5' stroke='white' stroke-width='2' fill='none'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- HOME -->
+<div id="home" hidden>
+  <header class="home-top">
+    <div class="brand"><span class="logo"></span><b>orim</b><span class="sub">replicate any diagram as an editable one</span></div>
+    <div class="grow"></div>
+    <button class="btn ghost" id="homeLibrary">Library</button>
+    <button class="ib themeBtn" title="Switch day / night"><svg viewBox="0 0 24 24" class="moon"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg viewBox="0 0 24 24" class="sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+    <button class="btn ghost" id="homeSettings">Settings</button>
+  </header>
+  <main class="home-main">
+    <section class="hero">
+      <div id="drop" class="drop">
+        <svg viewBox="0 0 24 24" width="40" height="40"><g fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.8"/><path d="M21 16l-5-5L5 20"/></g></svg>
+        <b>Drop, paste or pick a diagram image</b>
+        <span>Agents rebuild it as an editable diagram that matches the original — shapes, colours, fonts, lines. Shapes it does not know yet are designed and added to the library.</span>
+        <input type="file" id="fileIn" accept="image/*" hidden>
+      </div>
+      <p id="keyNote" class="note" hidden>Add your Claude API key in <a href="#" onclick="document.getElementById('homeSettings').click();return false">Settings</a> to replicate images. Templates and the editor work without it.</p>
+      <div class="hero-actions"><button class="btn" id="newBlank">New blank diagram</button><span id="libStats" class="muted"></span></div>
+    </section>
+    <h3>Templates</h3>
+    <div id="homeTemplates" class="cards"></div>
+    <h3 class="row-h">Your diagrams <button class="btn ghost small" id="delAll" hidden>Delete all</button></h3>
+    <div id="homeRecent" class="cards"></div>
+  </main>
+</div>
+
+<!-- EDITOR -->
+<div id="app" hidden>
+  <header class="top">
+    <button class="ib" id="homeBtn" title="Home"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <input id="docName" class="docname" spellcheck="false">
+    <div class="sep"></div>
+    <button class="ib" id="undoBtn" title="Undo (⌘Z)"><svg viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+    <button class="ib" id="redoBtn" title="Redo (⇧⌘Z)"><svg viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+    <div class="sep"></div>
+    <button class="ib" id="zoomOut" title="Zoom out">−</button><button class="ib wide" id="zoomFit" title="Fit (⌘0)">Fit</button><button class="ib" id="zoomIn" title="Zoom in">+</button>
+    <div id="srcCtl" class="srcctl" hidden>
+      <div class="seg" id="viewSeg"><button data-view="diagram" title="Your editable diagram (V)">Diagram</button><button data-view="source" title="The original image you replicated (V)">Original</button><button data-view="both" title="Original laid over the diagram to compare">Compare</button></div>
+      <input type="range" id="blendSlider" min="0.1" max="0.9" step="0.05" title="How much of the original shows through" hidden>
+    </div>
+    <div class="grow"></div>
+    <span id="mockBadge" class="pill running" title="Model calls are simulated (?mock)" hidden>mock AI</span>
+    <button class="btn ghost" id="askBtn" title="Describe a change for the AI">Ask AI</button>
+    <button class="btn ghost" id="refineBtn" title="One more critic round against the source">Refine</button>
+    <button class="btn primary" id="replicateBtn">Replicate</button>
+    <div class="menuwrap"><button class="btn ghost" id="exportBtn">Export ▾</button>
+      <div id="exportMenu" class="menu" hidden><button data-export="png">PNG image (2×)</button><button data-export="svg">SVG (fonts embedded)</button><button data-export="json">Diagram file (.json)</button><hr><button data-export="template">Save as template</button></div></div>
+    <button class="ib" id="libraryBtn" title="Library"><svg viewBox="0 0 24 24"><path d="M4 19V5M9 19V5M14 19l-2-14M19 19l-4-13"/></svg></button>
+    <button class="ib themeBtn" title="Switch day / night"><svg viewBox="0 0 24 24" class="moon"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><svg viewBox="0 0 24 24" class="sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button>
+    <button class="ib" id="settingsBtn" title="Settings"><svg viewBox="0 0 24 24"><path d="M10.3 3.2h3.4l.5 2.4 1.7.9 2.3-.9 1.7 2.9-1.8 1.6v1.9l1.8 1.6-1.7 2.9-2.3-.9-1.7.9-.5 2.4h-3.4l-.5-2.4-1.7-.9-2.3.9-1.7-2.9 1.8-1.6v-1.9L4.1 8.5l1.7-2.9 2.3.9 1.7-.9z"/><circle cx="12" cy="12" r="2.8"/></svg></button>
+  </header>
+  <aside id="palette" class="palette"></aside>
+  <main id="stage" class="stage"></main>
+  <aside class="side">
+    <div class="tabs"><button data-side="inspect" class="on">Properties</button><button data-side="agents">Agents</button></div>
+    <div id="inspector" class="inspector"></div>
+    <div id="agents" class="agents" hidden></div>
+  </aside>
+</div>
+
+<!-- DIALOGS -->
+<dialog id="repDlg" class="dlg">
+  <form method="dialog">
+    <h2>Replicate this image</h2>
+    <div class="rep-grid"><img id="repPreview" alt=""><div>
+      <label class="f wide"><span>Instructions (optional)</span><textarea id="repInstr" rows="3" placeholder="e.g. use Inter for all text, the arrows are curved"></textarea></label>
+      <label class="f wide"><span>Critic rounds</span><input type="number" id="repIter" min="0" max="10"></label>
+      <label class="chk"><input type="checkbox" id="repDesign"> Design missing shapes and add them to the library</label>
+      <label class="chk"><input type="checkbox" id="repDiagramOnly"> Diagram only (skip app UI and toolbars around it)</label>
+      <p id="repKeyWarn" class="err" hidden>Add an API key in Settings first.</p>
+    </div></div>
+    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" id="repGo">Replicate</button></div>
+  </form>
+</dialog>
+
+<dialog id="askDlg" class="dlg">
+  <form method="dialog"><h2>Ask AI to change the diagram</h2>
+    <textarea id="askIn" rows="3" placeholder="e.g. make all connectors dashed and add a legend at the bottom"></textarea>
+    <div id="askStyleWrap" hidden><span class="muted small">Style to follow (optional) — pick a template and the AI matches its look</span><div id="askStyles" class="tpl-pick"></div></div>
+    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" id="askGo">Apply</button></div></form>
+</dialog>
+
+<dialog id="setDlg" class="dlg">
+  <form method="dialog">
+    <h2>Settings</h2>
+    <h4>Model provider</h4>
+    <div class="grid2"><label class="f"><span>Provider</span><select id="setProvider"></select></label><label class="f"><span>API key <a id="setKeyLink" target="_blank" rel="noopener">get one</a></span><input type="password" id="setKey" autocomplete="off"></label></div>
+    <p class="muted small">The key is stored in this browser only and sent only to the provider's API.</p>
+    <h4>Agents</h4>
+    <table class="roles"><tr><th></th><th>Model</th><th>Effort</th></tr>
+      <tr><td>Vision analyst</td><td><select id="setM-analyst"></select></td><td><select id="setE-analyst"><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></td></tr>
+      <tr><td>Shape designer</td><td><select id="setM-designer"></select></td><td><select id="setE-designer"><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></td></tr>
+      <tr><td>Critic</td><td><select id="setM-critic"></select></td><td><select id="setE-critic"><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></td></tr>
+      <tr><td>Ask AI editor</td><td><select id="setM-editor"></select></td><td><select id="setE-editor"><option>low</option><option>medium</option><option>high</option><option>xhigh</option><option>max</option></select></td></tr>
+      <tr><td>Quick sketch</td><td><select id="setM-sketch"></select></td><td><select id="setE-sketch"><option>low</option><option>medium</option><option>high</option></select></td></tr></table>
+    <p class="muted small">Reasoning counts as output tokens, the expensive kind. Medium effort is usually enough for the critic and editor; Sonnet 5.5 costs half of Opus.</p>
+    <div class="grid2"><label class="f"><span>Critic rounds</span><input type="number" id="setIter" min="0" max="10"></label><label class="f"><span>Designer attempts per shape</span><input type="number" id="setAttempts" min="1" max="6"></label></div>
+    <div class="grid2"><label class="f"><span>Budget per run ($)</span><input type="number" id="setBudget" min="0" step="0.5"></label><label class="chk"><input type="checkbox" id="setMeasure"> Snap boxes and colours to the pixels</label></div>
+    <h4>Library folder</h4>
+    <p class="muted small">Connect this project's folder and everything the agents learn (shapes, lessons, templates) is also written to <code>library/</code>, ready to commit and publish with GitHub Pages.</p>
+    <div id="folderRow"></div>
+    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn primary" id="setSave">Save</button></div>
+  </form>
+</dialog>
+
+<dialog id="libDlg" class="dlg wide">
+  <form method="dialog">
+    <h2>Library</h2>
+    <p class="muted small">What the agents have learned. Learned shapes appear in the palette under ★ Learned and are offered to the analyst in every future replication; lessons are added to its instructions.</p>
+    <h4>Learned shapes</h4><div id="libKinds" class="lks"></div>
+    <h4>Lessons</h4><ul id="libLessons" class="lessons"></ul>
+    <div class="dlg-actions"><button class="btn" type="button" id="libImport">Import…</button><button class="btn" type="button" id="libExport">Export library</button><div class="grow"></div><button class="btn primary" data-close>Close</button></div>
+  </form>
+</dialog>
+
+<dialog id="imgDlg" class="dlg wide img"><form method="dialog"><img id="imgDlgImg" alt=""><p id="imgDlgCap" class="muted"></p><div class="dlg-actions"><button class="btn primary" data-close>Close</button></div></form></dialog>
+
+<div id="toast" hidden></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>

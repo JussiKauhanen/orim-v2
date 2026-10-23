@@ -1,0 +1,13 @@
+{
+  "name": "orim",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Split Mermaid editor and Miro-style board with Azure, Power Platform and Dynamics 365 icons.",
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server -c-1 -p 8080 .",
+    "test": "node tests/core.test.mjs",
+    "build": "node tools/build.mjs"
+  },
+  "engines": { "node": ">=18" }
+}

@@ -1,0 +1,57 @@
+[
+  {"id":"phone","name":"Phone frame","category":"wireframe","tags":["mobile","device","screen","iphone","mockup"],"description":"Mobile phone outline with notch; screen content goes on top as other elements","size":[200,410],
+   "params":{"radius":{"type":"number","default":26,"min":0,"max":80,"label":"Corner radius"},"notch":{"type":"boolean","default":true,"label":"Notch"}},
+   "style":{"fill":"#ffffff","stroke":"#1f2328","strokeWidth":5},"text":{"size":14,"color":"#1f2328","valign":"top"},
+   "svg":"<rect x='{sw/2}' y='{sw/2}' width='{w-sw}' height='{h-sw}' rx='{radius}' {@paint}/>{#if notch}<rect x='{w*0.3}' y='{sw/2}' width='{w*0.4}' height='{max(8,h*0.035)}' rx='{max(4,h*0.0175)}' fill='{stroke}'/>{/if}",
+   "textBox":["12","40","w-24","h-60"]},
+
+  {"id":"browser","name":"Browser window","category":"wireframe","tags":["web","window","site","desktop","mockup"],"description":"Browser window with title bar and three dots","size":[480,320],
+   "params":{"bar":{"type":"number","default":32,"min":16,"max":80,"label":"Bar height"},"radius":{"type":"number","default":8,"min":0,"max":30,"label":"Corner radius"}},
+   "style":{"fill":"#ffffff","fill2":"#eef0f3","stroke":"#c9ced6","strokeWidth":1.5},"text":{"size":13,"color":"#57606a","align":"center","valign":"middle"},
+   "svg":"<rect x='{sw/2}' y='{sw/2}' width='{w-sw}' height='{h-sw}' rx='{radius}' fill='{fill}' stroke='none'/><path d='M{sw/2},{bar} V{radius} Q{sw/2},{sw/2} {radius},{sw/2} H{w-radius} Q{w-sw/2},{sw/2} {w-sw/2},{radius} V{bar} Z' fill='{fill2}'/><path d='M0,{bar} H{w}' stroke='{stroke}' stroke-width='{sw}'/>{#repeat i 3}<circle cx='{bar*0.5+i*bar*0.45}' cy='{bar/2}' r='{bar*0.13}' fill='{pick(i,\"#ff5f57\",\"#febc2e\",\"#28c840\")}'/>{/repeat}<rect x='{sw/2}' y='{sw/2}' width='{w-sw}' height='{h-sw}' rx='{radius}' fill='none' stroke='{stroke}' stroke-width='{sw}'/>",
+   "textBox":["bar*2","0","w-bar*4","bar"]},
+
+  {"id":"button","name":"Button","category":"wireframe","tags":["cta","submit","action"],"description":"UI button with rounded corners and centred label","size":[160,40],
+   "params":{"radius":{"type":"number","default":8,"min":0,"max":40,"label":"Corner radius"}},
+   "style":{"fill":"#a5a6f6","stroke":"none","strokeWidth":0},"text":{"size":12,"color":"#1f2328","weight":500,"upper":true},
+   "svg":"<rect x='{sw/2}' y='{sw/2}' width='{w-sw}' height='{h-sw}' rx='{min(radius,h/2)}' {@paint}/>",
+   "textBox":["6","0","w-12","h"]},
+
+  {"id":"input","name":"Input field","category":"wireframe","tags":["textbox","field","form","text field"],"description":"Form text input; its text is the value or placeholder, left aligned","size":[220,36],
+   "params":{"radius":{"type":"number","default":8,"min":0,"max":30,"label":"Corner radius"}},
+   "style":{"fill":"#ffffff","stroke":"#c9ced6","strokeWidth":1.5},"text":{"size":12,"color":"#57606a","align":"left"},
+   "svg":"<rect x='{sw/2}' y='{sw/2}' width='{w-sw}' height='{h-sw}' rx='{min(radius,h/2)}' {@paint}/>",
+   "textBox":["10","0","w-20","h"]},
+
+  {"id":"image-placeholder","name":"Image placeholder","category":"wireframe","tags":["photo","picture","media","hero"],"description":"Grey box with a picture glyph in the middle","size":[200,140],
+   "params":{"radius":{"type":"number","default":0,"min":0,"max":60,"label":"Corner radius"},"glyph":{"type":"number","default":0.28,"min":0.05,"max":0.9,"step":0.01,"label":"Glyph size"}},
+   "style":{"fill":"#d9d9d9","fill2":"#8c8c8c","stroke":"none","strokeWidth":0},
+   "svg":"<rect x='{sw/2}' y='{sw/2}' width='{w-sw}' height='{h-sw}' rx='{radius}' {@paint}/><g transform='translate({w/2-min(w,h)*glyph/2},{h/2-min(w,h)*glyph/2}) scale({min(w,h)*glyph/24})' fill='none' stroke='{fill2}' stroke-width='2' stroke-linejoin='round'><rect x='2' y='3' width='20' height='18' rx='2'/><circle cx='8' cy='9' r='2'/><path d='M22 17l-6-6L4 21'/></g>",
+   "textBox":["8","h-28","w-16","24"]},
+
+  {"id":"text-lines","name":"Text lines","category":"wireframe","tags":["placeholder","lorem","paragraph","squiggle","lines"],"description":"Placeholder text: n horizontal rounded bars; last bar shorter","size":[160,60],
+   "params":{"n":{"type":"number","default":3,"min":1,"max":30,"step":1,"label":"Lines"},"thickness":{"type":"number","default":5,"min":1,"max":40,"label":"Bar thickness"},"last":{"type":"number","default":0.6,"min":0.1,"max":1,"step":0.01,"label":"Last line length"},"align":{"type":"select","default":"center","options":["left","center"],"label":"Align"}},
+   "style":{"fill":"#8c8c8c","stroke":"none","strokeWidth":0},
+   "svg":"{#repeat i n}<rect x='{align==\"left\"?0:(i==n-1?w*(1-last)/2:0)}' y='{n==1?(h-thickness)/2:i*(h-thickness)/(n-1)}' width='{i==n-1&&n>1?w*last:w}' height='{thickness}' rx='{thickness/2}' fill='{fill}'/>{/repeat}"},
+
+  {"id":"dots","name":"Progress dots","category":"wireframe","tags":["pagination","carousel","stepper","indicator"],"description":"Row of n dots; the active one uses fill, the rest fill2","size":[60,12],
+   "params":{"n":{"type":"number","default":3,"min":1,"max":20,"step":1,"label":"Dots"},"active":{"type":"number","default":0,"min":-1,"max":19,"step":1,"label":"Active"}},
+   "style":{"fill":"#9a9a9a","fill2":"#d9d9d9","stroke":"none","strokeWidth":0},
+   "svg":"{#repeat i n}<circle cx='{w/n*(i+0.5)}' cy='{h/2}' r='{min(h/2,w/n/3)}' fill='{i==active?fill:fill2}'/>{/repeat}"},
+
+  {"id":"squiggle","name":"Scribble line","category":"decor","tags":["handwriting","placeholder","scribble","wave"],"description":"Hand-written looking wavy line used as placeholder text","size":[160,30],
+   "params":{"waves":{"type":"number","default":6,"min":1,"max":40,"step":1,"label":"Waves"},"amp":{"type":"number","default":0.35,"min":0,"max":0.5,"step":0.01,"label":"Amplitude"}},
+   "style":{"stroke":"#3a4466","strokeWidth":4,"fill":"none"},
+   "svg":"<path d='M{sw/2},{h/2}{#repeat i waves} q{(w-sw)/waves/4},{-h*amp*2} {(w-sw)/waves/2},0 t{(w-sw)/waves/2},0{/repeat}' {@line}/>"},
+
+  {"id":"cursor-tag","name":"Cursor with name","category":"wireframe","tags":["collaborator","pointer","presence","miro","figma"],"description":"Collaborator name pill with a pointer arrow off its top-right corner (fill2 = pill fill, stroke = outline). side=right|left chooses where the arrow sits.","size":[110,44],
+   "params":{"side":{"type":"select","default":"right","options":["right","left"],"label":"Arrow side"},"arrow":{"type":"number","default":26,"min":8,"max":80,"label":"Arrow size"}},
+   "style":{"fill":"#ffffff","fill2":"#fde2b8","stroke":"#1f2328","strokeWidth":1.5},"text":{"size":20,"color":"#1f2328"},
+   "svg":"<rect x='{sw/2}' y='{sw/2}' width='{w-sw}' height='{h-sw}' rx='{h/2-sw/2}' fill='{fill2}' stroke='{stroke}' stroke-width='{sw}'/><g transform='translate({side==\"right\"?w+arrow*0.15:-arrow*0.15},{-arrow*0.15}) scale({side==\"right\"?1:-1},1)'><path d='M{arrow*0.95},{-arrow*0.95} L{0},{-arrow*0.35} L{arrow*0.4},{-arrow*0.4} L{arrow*0.35},{0} Z' fill='{fill}' stroke='{stroke}' stroke-width='{sw}' stroke-linejoin='round'/></g>",
+   "textBox":["h*0.35","0","w-h*0.7","h"]},
+
+  {"id":"comment-badge","name":"Comment badge","category":"wireframe","tags":["comment","annotation","feedback","chat"],"description":"Small rounded comment bubble with two lines and a tail at bottom-left","size":[34,32],
+   "params":{"radius":{"type":"number","default":4,"min":0,"max":20,"label":"Corner radius"}},
+   "style":{"fill":"#fde047","stroke":"#1f2328","strokeWidth":1.5},
+   "svg":"<path d='M{radius},{sw/2} H{w-radius} Q{w-sw/2},{sw/2} {w-sw/2},{radius} V{h*0.78-radius} Q{w-sw/2},{h*0.78} {w-radius},{h*0.78} H{w*0.45} L{w*0.28},{h-sw/2} L{w*0.3},{h*0.78} H{radius} Q{sw/2},{h*0.78} {sw/2},{h*0.78-radius} V{radius} Q{sw/2},{sw/2} {radius},{sw/2} Z' {@paint}/><path d='M{w*0.25},{h*0.3} H{w*0.75} M{w*0.25},{h*0.5} H{w*0.75}' stroke='{stroke}' stroke-width='{sw}' stroke-linecap='round'/>"}
+]

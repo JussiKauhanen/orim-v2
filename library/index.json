@@ -1,0 +1,27 @@
+{
+ "kinds": [
+  "kinds/shapes.json",
+  "kinds/wireframe.json",
+  "kinds/icons.json",
+  "kinds/azure.json",
+  "kinds/power-platform.json",
+  "kinds/dynamics.json"
+ ],
+ "learned": [],
+ "templates": [
+  "templates/mindmap-dark.json",
+  "templates/swimlane-flow.json",
+  "templates/bubble-keywords.json",
+  "templates/gantt-rows.json",
+  "templates/sketch-decision.json",
+  "templates/feature-map.json",
+  "templates/miro-sprints.json",
+  "templates/azure-dataflow.json",
+  "templates/aks-architecture.json",
+  "templates/idea-mindmap.json",
+  "templates/figma-flowchart.json",
+  "templates/miro-wireframe.json",
+  "templates/miro-mindmap-play.json"
+ ],
+ "lessons": "lessons.json"
+}

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>orim</title>
+  <meta name="description" content="orim: a split Mermaid editor and Miro-style board with Azure, Power Platform and Dynamics 365 icons.">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Caveat:wght@500;700&family=Bangers&family=Fredoka:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="css/orim.css">
+</head>
+<body>
+<div class="home" id="home" hidden>
+    <header class="home-top">
+      <a class="wordmark" href="#" aria-label="orim home"><svg class="mark" style="width:26px;height:26px" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="8" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 8.5h3M4.5 12h2M4.5 15.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="14" y="3.5" width="7.5" height="6" rx="1.6" fill="#4262ff"/><rect x="14" y="14.5" width="7.5" height="6" rx="3" fill="none" stroke="#4262ff" stroke-width="1.6"/><path d="M17.75 9.5v5" stroke="#4262ff" stroke-width="1.6"/></svg><span>orim</span></a>
+      <span class="grow"></span>
+      <button type="button" class="ibtn" id="homeTheme" aria-label="Theme"></button>
+      <button type="button" class="btn folder-btn" id="homeFolder" hidden></button>
+      <button type="button" class="btn" id="homeImport">Import</button>
+      <button type="button" class="btn primary" id="homeNew"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New board</button>
+      <button type="button" class="me-btn" data-me hidden></button>
+    </header>
+    <main class="home-main">
+      <section class="welcome" aria-labelledby="welcomeTitle">
+        <div class="welcome-text">
+          <h1 id="welcomeTitle">Welcome back</h1>
+          <p>Pick up where you left off, or tell the AI what you need and watch it draw: diagrams, screens, docs and tickets.</p>
+          <div class="welcome-cta">
+            <button type="button" class="btn primary" data-welcome="new"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>New board</button>
+            <button type="button" class="btn ai-btn" data-welcome="ai"><span class="ai-mk"></span>Start with AI</button>
+            <button type="button" class="btn" data-welcome="text"><svg class="i" viewBox="0 0 24 24"><path d="M4 7h10M4 12h16M4 17h7"/></svg>From text</button>
+            <button type="button" class="btn" data-welcome="import"><svg class="i" viewBox="0 0 24 24"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg>Import</button>
+          </div>
+        </div>
+        <div class="welcome-art" id="welcomeArt" aria-hidden="true"></div>
+      </section>
+      <section class="hero">
+        <h1>Describe it. <span class="ai-grad">Watch it draw.</span></h1>
+        <p class="tag">Architecture diagrams with real Azure and Power Platform icons, journey maps, mockups, docs and tickets, on one board. Ask the AI, snap a whiteboard photo, write Mermaid or drag things around. Your boards stay in your browser, or in a folder you choose.</p>
+        <div class="hero-cta">
+          <button type="button" class="btn primary lg" id="heroAI"><span class="ai-mk"></span>Start with AI</button>
+          <button type="button" class="btn lg" id="heroTry">Open an example</button>
+          <button type="button" class="btn lg ghost" id="heroStart">Start a blank board</button>
+          <button type="button" class="btn lg ghost" id="heroText" hidden>Turn text into a board</button>
+        </div>
+        <div class="shot" id="heroShot" aria-label="What orim does, in three short examples">
+          <div class="shot-bar"><i></i><i></i><i></i><span id="heroName">Power Platform solution</span><span class="grow"></span><div class="shot-dots" id="heroDots" role="tablist"></div></div>
+          <div class="shot-body">
+            <div class="shot-chat" id="heroChat"></div>
+            <pre class="shot-code" id="heroCode" hidden></pre>
+            <div class="shot-board" id="heroBoard"></div>
+          </div>
+        </div>
+      </section>
+      <section class="teams" aria-labelledby="hTeams">
+        <h2 id="hTeams">Which team are you on?</h2>
+        <div class="team-tabs" id="teamTabs" role="tablist"></div>
+        <div class="team-card" id="teamCard" role="tabpanel"></div>
+      </section>
+      <section class="features" aria-label="What orim does">
+        <div class="feat"><b>Ask the AI</b><p>Type what you want and Claude builds on the board as it answers, one undo step per request. Select notes and let it group, summarise, translate or turn them into tickets.</p></div>
+        <div class="feat"><b>Photo to board</b><p>Snap a whiteboard, sticky notes or a screenshot of a diagram, and Claude rebuilds it as shapes, frames and lines you can edit.</p></div>
+        <div class="feat"><b>Styles and templates</b><p>Journey maps, layered architecture, mind maps, SWOT and sprint plans, in Midnight, Pastel, Blueprint or Sketch styles, with fonts to match.</p></div>
+        <div class="feat"><b>Write or draw</b><p>Type Mermaid or plain lines like <code>App -&gt; Dataverse</code>, or drag things around. Both stay in sync, and export to PNG, SVG, draw.io or Markdown.</p></div>
+        <div class="feat"><b>Screens, docs and tickets</b><p>Phone, iPad and desktop mockups, comparison tables, documents, and tickets that copy into Azure DevOps or export as its import CSV.</p></div>
+        <div class="feat"><b>Real cloud icons</b><p>679 Azure, Power Platform and Dynamics 365 icons, picked for you from service names.</p><div class="feat-icons" id="heroIcons"></div></div>
+      </section>
+      <section aria-labelledby="hTpl">
+        <div class="sec-head"><h2 id="hTpl">Start something new</h2><button type="button" class="btn ghost tp-all" id="homeAllTpl">All templates</button><span class="grow"></span><div class="tpl-nav" id="tplNav"><button type="button" class="ibtn" data-tpl-dir="-1" aria-label="Previous templates" title="Previous"><svg class="i" viewBox="0 0 24 24"><path d="M14.5 6l-6 6 6 6"/></svg></button><button type="button" class="ibtn" data-tpl-dir="1" aria-label="More templates" title="More"><svg class="i" viewBox="0 0 24 24"><path d="M9.5 6l6 6-6 6"/></svg></button></div></div>
+        <div class="tpl-row" id="homeTpl"></div>
+      </section>
+      <div class="folder-tip" id="folderTip" hidden><span class="ft-ico"><svg class="i" viewBox="0 0 24 24"><path d="M3.5 7.5A1.5 1.5 0 0 1 5 6h4.2l2 2.2H19a1.5 1.5 0 0 1 1.5 1.5v8.3A1.5 1.5 0 0 1 19 19.5H5A1.5 1.5 0 0 1 3.5 18z"/></svg></span><div><b>Keep your boards as files?</b><span>orim can save each board as a Markdown file in a folder you choose, with its pictures next to it. Handy for Git, OneDrive or sharing.</span></div><button type="button" class="btn primary" data-ft="choose">Choose a folder</button><button type="button" class="btn ghost" data-ft="no">No thanks</button></div>
+      <section aria-labelledby="hRec" id="recentsSec">
+        <div class="sec-head"><h2 id="hRec">Jump back in</h2>
+          <span class="grow"></span><button type="button" class="ibtn" id="removeAllBtn" title="Delete all boards" aria-label="Delete all boards" hidden><svg class="i" viewBox="0 0 24 24"><path d="M5 7h14M10 11v6M14 11v6M6.5 7l1 12.5a1.5 1.5 0 0 0 1.5 1.5h6a1.5 1.5 0 0 0 1.5-1.5L17.5 7M9.5 7V4.5h5V7"/></svg></button>
+          <div class="seg" id="homeView" aria-label="Layout"><button type="button" data-view="grid" title="Grid" aria-label="Grid"><svg class="i" viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg></button><button type="button" data-view="list" title="List" aria-label="List"><svg class="i" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg></button></div>
+        </div>
+        <div class="recents" id="homeRecents"></div>
+      </section>
+      <p class="home-foot" id="homeFoot">Boards are saved in this browser only. To move a board to another device, open it and use Export, Board file.</p>
+    </main>
+    <div class="menu home-menu" id="homeMenu" hidden>
+      <button type="button" data-hm="open"><b>Open</b></button>
+      <button type="button" data-hm="rename"><b>Rename</b></button>
+      <button type="button" data-hm="duplicate"><b>Duplicate</b></button>
+      <button type="button" data-hm="export"><b>Export board file</b></button>
+      <button type="button" data-hm="move" hidden><b>Save to folder</b></button>
+      <hr>
+      <button type="button" data-hm="remove"><b style="color:var(--danger)">Delete</b></button>
+    </div>
+  </div>
+<div class="save-menu" id="saveMenu" hidden role="dialog" aria-label="Where this board is saved"></div>
+<div class="tp-overlay" id="tplPicker" hidden role="dialog" aria-modal="true" aria-label="Templates">
+  <div class="tp-box"><button type="button" class="ibtn tp-x" data-tp-close aria-label="Close" title="Close (Esc)"><svg class="i" viewBox="0 0 24 24"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+  <div class="tp-body"><nav class="tp-side" aria-label="Template categories"></nav><section class="tp-main">
+    <label class="tp-search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/></svg><input id="tpSearch" type="search" placeholder="Search templates by name or use" aria-label="Search templates" autocomplete="off"></label>
+    <h3 id="tpTitle">All templates</h3><div class="tp-grid"></div></section></div></div>
+</div>
+<div class="app" id="app" hidden data-mode="split">
+  <header class="top">
+    <div class="brand">
+      <button type="button" class="home-btn" id="homeBtn" title="All boards" aria-label="All boards"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="4" width="8" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M4.5 8.5h3M4.5 12h2M4.5 15.5h3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/><rect x="14" y="3.5" width="7.5" height="6" rx="1.6" fill="#2f5bea"/><rect x="14" y="14.5" width="7.5" height="6" rx="3" fill="none" stroke="#2f5bea" stroke-width="1.6"/><path d="M17.75 9.5v5" stroke="#2f5bea" stroke-width="1.6"/></svg></button>
+      <input id="docTitle" class="title-input" placeholder="Untitled board" aria-label="Diagram title" spellcheck="false">
+      <button type="button" class="file-state" id="fileState" hidden aria-haspopup="true"></button>
+    </div>
+    <div class="seg" id="viewSeg" aria-label="Panels">
+      <button type="button" data-mode="split" title="Split view (Alt+1)">Split</button>
+      <button type="button" data-mode="canvas" title="Canvas only (Alt+2)">Canvas</button>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="ibtn" id="undoBtn" title="Undo (Ctrl+Z)" aria-label="Undo"><svg class="i" viewBox="0 0 24 24"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button type="button" class="ibtn" id="redoBtn" title="Redo (Ctrl+Shift+Z)" aria-label="Redo"><svg class="i" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+      <span class="vsep hide-narrow"></span>
+      <div class="menu-wrap">
+        <button type="button" class="btn" id="styleBtn" aria-haspopup="true" title="Board style: colours and fonts for the whole board"><svg class="i" viewBox="0 0 24 24"><path d="M12 3.5a8.5 8.5 0 1 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1.2-1.6-1.2-2.8 0-1 .8-1.8 1.9-1.8h2.2a3.8 3.8 0 0 0 3.8-3.8C20.5 6.7 16.7 3.5 12 3.5z"/><circle cx="7.8" cy="11" r="1.1"/><circle cx="10.5" cy="7.5" r="1.1"/><circle cx="15" cy="7.6" r="1.1"/></svg><span>Style</span></button>
+        <div class="menu style-menu" id="styleMenu" hidden></div>
+      </div>
+      <div class="menu-wrap">
+        <button type="button" class="btn" id="tplBtn" aria-haspopup="dialog">Templates</button>
+        <div class="menu" id="tplMenu" hidden></div>
+      </div>
+      <button type="button" class="btn hide-narrow" id="importBtn">Import</button>
+      <input type="file" id="fileIn" accept=".md,.mmd,.mermaid,.txt,.json" hidden>
+      <input type="file" id="imgIn" accept="image/*" multiple hidden>
+      <div class="menu-wrap">
+        <button type="button" class="btn primary" id="exportBtn" aria-haspopup="true">Export<svg class="i" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg></button>
+        <div class="menu right" id="exportMenu" hidden>
+          <button type="button" data-export="png"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="4.5" width="17" height="15" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 15.5l-4.5-4.5-9.5 8.5"/></svg><b>PNG image</b><small>2x resolution, white background</small></button>
+          <button type="button" data-export="svg"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 18C6.5 10 17.5 10 19 18"/><path d="M5 8h14"/><rect x="10.5" y="6.5" width="3" height="3" rx=".5"/><circle cx="5" cy="18" r="1.5"/><circle cx="19" cy="18" r="1.5"/></svg><b>SVG vector</b><small>Scales cleanly, icons embedded</small></button>
+          <hr>
+          <button type="button" data-export="md"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3" width="12" height="6" rx="3"/><path d="M12 9v3.5"/><path d="M12 12.5l5 4.25-5 4.25-5-4.25z"/></svg><b>Mermaid in Markdown (.md)</b><small>Renders on GitHub, Azure DevOps, Notion</small></button>
+          <button type="button" data-export="txt"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3" width="12" height="6" rx="3"/><path d="M12 9v3.5"/><path d="M12 12.5l5 4.25-5 4.25-5-4.25z"/></svg><b>Mermaid source (.txt)</b><small>Plain code, rename to .mmd if needed</small></button>
+          <button type="button" data-export="drawio"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/><path d="M11 7h5v7"/><circle cx="16" cy="7" r=".9"/></svg><b>draw.io diagram</b><small>Editable in draw.io and diagrams.net</small></button>
+          <button type="button" data-export="json"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3.5H7a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8.5z"/><path d="M14 3.5v5h5"/><path d="M10.5 12c-1 0-1.5.5-1.5 1.25s-.5 1.25-1 1.25c.5 0 1 .5 1 1.25S9.5 17 10.5 17M13.5 12c1 0 1.5.5 1.5 1.25s.5 1.25 1 1.25c-.5 0-1 .5-1 1.25s-.5 1.25-1.5 1.25"/></svg><b>Board file (.json)</b><small>Reopen here with Import</small></button>
+          <button type="button" data-export="tickets"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 4v16"/><path d="M8.5 9h7M8.5 13h7M8.5 17h4"/></svg><b>Tickets for Azure DevOps (.csv)</b><small>Import under Boards, Work items, Import</small></button>
+          <hr>
+          <button type="button" data-export="ai"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7l-4.5 3.5V17H6a2 2 0 0 1-2-2z"/><path d="M8 9l2.5 1.75L8 12.5M13 12.5h3"/></svg><b>Ask an AI</b><small>Prompt with the orim format; paste the answer back</small></button>
+          <button type="button" data-export="qr"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="6" height="6" rx="1"/><rect x="14.5" y="3.5" width="6" height="6" rx="1"/><rect x="3.5" y="14.5" width="6" height="6" rx="1"/><path d="M14.5 14.5h2.5v2.5h-2.5zM18.5 18.5h2v2h-2zM14.5 19.5h1M20.5 14.5v1.5"/></svg><b>QR code</b><small>Open this board on another device</small></button>
+          <button type="button" data-export="copy"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="3" width="12" height="6" rx="3"/><path d="M12 9v3.5"/><path d="M12 12.5l5 4.25-5 4.25-5-4.25z"/></svg><b>Copy Mermaid code</b><small>Includes canvas positions as comments</small></button>
+          <button type="button" data-export="drawiocopy"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="8" height="6" rx="1.5"/><rect x="13" y="14" width="8" height="6" rx="1.5"/><path d="M11 7h5v7"/><circle cx="16" cy="7" r=".9"/></svg><b>Copy for draw.io</b><small>Paste straight onto a draw.io canvas</small></button>
+          <button type="button" data-export="import" class="show-narrow-only"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5L12 4l4.5 4.5"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg><b>Import a file</b><small>.md, .mmd, .txt or board .json</small></button>
+        </div>
+      </div>
+      <button type="button" class="ibtn" id="themeBtn" aria-label="Theme"></button>
+      <button type="button" class="ibtn" id="helpBtn" title="Shortcuts and syntax" aria-label="Shortcuts and syntax"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.6.3-1 .8-1 1.5v.5"/><path d="M12 17h.01"/></svg></button>
+      <button type="button" class="me-btn" data-me hidden></button>
+    </div>
+  </header>
+
+  <main class="work" id="work">
+    <section class="pane code-pane" id="codePane" aria-label="Mermaid code">
+      <div class="pane-head">
+        <div class="mode-seg" id="modeSeg" role="group" aria-label="Editor language"><button type="button" data-emode="mermaid" title="Edit as Mermaid code">Mermaid</button><button type="button" data-emode="text" title="Edit as simple text: A -> B, - list items, # Heading">Text</button><button type="button" data-emode="ai" title="Tell Claude what to change on the board"><span class="ai-tab-mark"></span>AI</button></div>
+        <span class="chip err" id="status" hidden></span>
+        <span class="grow"></span>
+        <label class="toggle" title="Show the positions and drawings stored as %% comments"><input type="checkbox" id="layoutToggle"><span>Canvas data</span></label>
+        <button type="button" class="btn sm" id="formatBtn" title="Rewrite the code in a clean, consistent layout">Format</button>
+        <button type="button" class="btn sm" id="copyBtn">Copy</button>
+      </div>
+      <div class="ed" id="ed">
+        <div class="gutter"><div id="gutterIn"></div></div>
+        <div class="ed-main">
+          <pre class="hl" id="hl" aria-hidden="true"></pre>
+          <textarea id="code" spellcheck="false" wrap="off" autocapitalize="off" autocomplete="off" aria-label="Mermaid code"></textarea>
+          <div class="ac" id="ac" hidden role="listbox"></div>
+        </div>
+      </div>
+      <div class="problems" id="problems" hidden></div>
+      <div class="ai-pane" id="aiPane" hidden>
+        <div class="ai-log" id="aiLog" aria-live="polite"></div>
+        <form class="ai-input" id="aiForm"><div class="ai-box">
+          <div class="ai-pic" id="aiPic" hidden></div>
+          <textarea id="aiIn" rows="2" placeholder="Where shall we start?" aria-label="Request for Claude"></textarea>
+          <div class="ai-bar">
+            <button type="button" class="ai-keybtn ai-attach" id="aiAttach" hidden title="Add a photo or screenshot. Claude turns it into stickies, shapes and lines you can edit" aria-label="Add a picture"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+            <input type="file" id="aiPicIn" accept="image/jpeg,image/png,image/webp,image/gif" hidden>
+            <label class="toggle" title="Slower, for bigger changes and questions that need thought"><input type="checkbox" id="aiDeep"><span>Think harder</span></label>
+            <span class="ai-sel" id="aiSel"></span><span class="grow"></span>
+            <button type="button" class="ai-round stop" id="aiStop" hidden title="Stop" aria-label="Stop"><svg class="i" viewBox="0 0 24 24"><rect x="7" y="7" width="10" height="10" rx="2" style="fill:currentColor;stroke:none"/></svg></button>
+            <button type="submit" class="ai-round" id="aiSend" title="Send (Enter)" aria-label="Send"><svg class="i" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+          </div>
+        </div></form>
+      </div>
+    </section>
+    <div class="splitter" id="splitter" role="separator" aria-orientation="vertical" aria-label="Resize panels" tabindex="0"></div>
+    <section class="pane board-pane" id="boardPane" aria-label="Canvas">
+      <svg id="board" class="board" xmlns="http://www.w3.org/2000/svg">
+        <defs id="defs"></defs>
+        <g id="world"><g id="lGroups"></g><g id="lImg"></g><g id="lEdges"></g><g id="lNodes"></g><g id="lEdgesTop"></g><g id="lInk"></g><g id="lImgTop"></g><g id="lOver"></g></g>
+      </svg>
+      <div class="empty-hint" id="emptyHint" hidden><b>Empty board</b>Paste any text, like <code>Browser → API → Database</code> or a bullet list. Or drag an icon from the library, pick a tool on the left, or type Mermaid. Double-click the board to add a box.</div>
+      <aside class="lib island" id="lib" aria-label="Icon library">
+        <div class="lib-head">
+          <div class="search"><svg class="i" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/></svg><input id="libSearch" type="search" placeholder="Search icons" aria-label="Search icons" autocomplete="off"></div>
+          <button type="button" class="ibtn" id="libClose" title="Close library (I)" aria-label="Close library"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+        </div>
+        <div class="chips" id="libChips"></div>
+        <div class="lib-pick" id="libPick" hidden><span id="libPickText"></span><button type="button" class="btn sm" id="libPickCancel">Cancel</button></div>
+        <div class="lib-body" id="libBody"><div class="lib-empty">Loading icons…</div></div>
+        <div class="lib-foot">Click to add, or drag onto the board. Icons are Microsoft's, licensed for architecture diagrams, training and documentation.</div>
+      </aside>
+      <div class="leftbar" id="leftbar">
+        <div class="tools island" id="tools" role="toolbar" aria-label="Tools" aria-orientation="vertical"></div>
+      </div>
+      <button type="button" class="ai-fab" id="aiFab" title="Ask Claude" aria-label="Ask Claude"></button>
+      <div class="flyout island" id="flyout" hidden></div>
+      <div class="zoom island" id="zoomBar">
+        <div class="menu-wrap"><button type="button" class="tidy" id="tidyBtn" aria-haspopup="true" title="Line up or rearrange shapes">Tidy up</button>
+          <div class="menu up" id="tidyMenu" hidden>
+            <button type="button" data-tidy="line"><b>Line up</b><small>Straighten rows and columns, keep your layout (Shift+L)</small></button>
+            <button type="button" data-tidy="auto"><b>Auto layout</b><small>Rearrange everything from the connections</small></button>
+            <hr>
+            <div class="curve-row"><span>Connectors</span><div class="seg2" id="curveSeg"><button type="button" data-curve="curved">Curved</button><button type="button" data-curve="straight">Straight</button><button type="button" data-curve="elbow">Elbow</button></div></div>
+          </div></div>
+        <span class="vsep"></span>
+        <button type="button" class="ibtn" id="zoomOut" title="Zoom out (Ctrl+-)" aria-label="Zoom out"><svg class="i" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <button type="button" class="zoom-pct" id="zoomPct" title="Reset to 100%">100%</button>
+        <button type="button" class="ibtn" id="zoomIn" title="Zoom in (Ctrl+=)" aria-label="Zoom in"><svg class="i" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button type="button" class="ibtn" id="zoomFit" title="Fit to screen (Shift+1)" aria-label="Fit to screen"><svg class="i" viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/></svg></button>
+      </div>
+      <div class="ctx island" id="ctx" hidden></div>
+      <div class="frame-offer island" id="frameOffer" hidden><button type="button" class="btn sm" id="frameOfferBtn" style="border:0">Create frame here</button></div>
+      <div class="pop island" id="pop" hidden></div>
+    </section>
+  </main>
+
+  <div class="help island" id="help" hidden>
+    <h3>Canvas</h3>
+    <dl>
+      <dt><kbd>V</kbd> <kbd>H</kbd></dt><dd>Select, hand (or hold <kbd>Space</kbd>)</dd>
+      <dt><kbd>R</kbd> <kbd>O</kbd> <kbd>D</kbd> <kbd>B</kbd></dt><dd>Rectangle, circle, decision, database</dd>
+      <dt><kbd>T</kbd> <kbd>F</kbd></dt><dd>Text, frame (subgraph)</dd>
+      <dt><kbd>A</kbd></dt><dd>Connector. Or drag the blue dots on any shape</dd>
+      <dt><kbd>I</kbd></dt><dd>Icon library</dd>
+      <dt><kbd>C</kbd></dt><dd>Comment: click the board or a shape, type, Enter</dd>
+      <dt>Double-click</dt><dd>Edit text, or add a box on empty board</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>D</kbd></dt><dd>Duplicate</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>G</kbd></dt><dd>Group into a frame, add <kbd>Shift</kbd> to ungroup</dd>
+      <dt><kbd>Del</kbd></dt><dd>Delete selection</dd>
+      <dt><kbd>Shift</kbd> <kbd>1</kbd></dt><dd>Fit to screen</dd>
+      <dt><kbd>Shift</kbd> <kbd>L</kbd></dt><dd>Line up shapes (selection or all)</dd>
+      <dt><kbd>Alt</kbd> drag</dt><dd>Move without grid snap</dd>
+      <dt>Scroll</dt><dd>Pan. <kbd>Ctrl</kbd> + scroll or pinch to zoom</dd>
+      <dt><kbd>Ctrl</kbd> <kbd>Z</kbd></dt><dd>Undo, works for code and canvas</dd>
+    </dl>
+    <h3>Text mode</h3>
+    <p>Switch the editor to Text to write the board as plain lines. It stays in sync with the canvas and is saved as Mermaid. Ctrl+Space shows suggestions.</p>
+    <h3>Paste text</h3>
+    <pre>Browser -> API -> Database
+API -> Cache, Key Vault: reads
+User <- Email -- Logic App
+
+# Ideas
+- Sticky note one
+- Sticky note two</pre>
+    <p>Paste on the board (Ctrl+V) or use Templates, Paste text to board. <code>-></code> <code>→</code> arrow, <code><-</code> reverse, <code><-></code> both ways, <code>--</code> plain line, <code>=></code> thick. Known service names get their icon.</p>
+    <h3>Mermaid syntax</h3>
+    <pre>flowchart LR
+  app@{ icon: "pp:power-apps", label: "Field app" }
+  fn@{ icon: "azure:function-apps", label: "API" }
+  db[(Orders)]
+  ok{Valid?}
+  subgraph cloud [Azure]
+    fn
+  end
+  app --&gt;|calls| fn
+  fn -.-&gt; db
+  fn ==&gt; ok
+  style ok fill:#fff3b0,stroke:#d4ac0d</pre>
+    <p>Icon packs: <code>azure:</code>, <code>pp:</code> (Power Platform) and <code>d365:</code> (Dynamics 365). Hover a library icon to see its id. Other Mermaid renderers show icon nodes only when the same icon pack is registered there.</p>
+    <p>Canvas positions are saved as <code>%% @pos</code> comment lines, which Mermaid ignores. Turn on Canvas data above the code to see them.</p>
+  </div>
+
+</div>
+
+  <div class="tip" id="tip" hidden></div>
+  <div class="toast" id="toast" hidden role="status" aria-live="polite"></div>
+  <div class="me-menu island" id="meMenu" role="dialog" aria-label="Account" hidden></div>
+
+  <div class="modal-back" id="modal" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header><span id="modalTitle">Export</span><span class="grow"></span><button type="button" class="ibtn" id="modalClose" aria-label="Close"><svg class="i" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg></button></header>
+      <div class="body" id="modalBody"></div>
+      <footer id="modalFoot"></footer>
+    </div>
+  </div>
+
+  <script src="vendor/dagre/dagre.min.js"></script>
+  <script src="vendor/qrcode-generator/qrcode.js"></script>
+  <script src="js/core/mockups.js"></script>
+  <script src="js/core/tickets.js"></script>
+  <script src="js/core/mermaid.js"></script>
+  <script src="js/core/geometry.js"></script>
+  <script src="js/core/templates.js"></script>
+  <script src="js/env.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/title.js"></script>
+  <script src="js/render.js"></script>
+  <script src="js/view.js"></script>
+  <script src="js/hit-test.js"></script>
+  <script src="js/pointer.js"></script>
+  <script src="js/label-editor.js"></script>
+  <script src="js/rich-edit.js"></script>
+  <script src="js/selection.js"></script>
+  <script src="js/context-toolbar.js"></script>
+  <script src="js/library.js"></script>
+  <script src="js/tools.js"></script>
+  <script src="js/keyboard.js"></script>
+  <script src="js/layout.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/templates.js"></script>
+  <script src="js/quick-text.js"></script>
+  <script src="js/export-drawio.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/share-qr.js"></script>
+  <script src="js/ai-guide.js"></script>
+  <script src="js/ai-key.js"></script>
+  <script src="js/ai-assist.js"></script>
+  <script src="js/theme.js"></script>
+  <script src="js/tooltips.js"></script>
+  <script src="js/me.js"></script>
+  <script src="js/comments.js"></script>
+  <script src="js/minimap.js"></script>
+<script src="js/board-style.js"></script>
+<script src="js/folder.js"></script>
+<script src="js/boards.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

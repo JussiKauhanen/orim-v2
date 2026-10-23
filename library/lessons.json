@@ -1,0 +1,5 @@
+[
+ {"id": "seed1", "text": "Screenshots of whiteboard apps (Miro, FigJam, Mural) usually show a light dotted or plain canvas: set page.background and a dots pattern rather than drawing dots as elements.", "tags": ["miro", "figma", "whiteboard", "general"], "source": "seed"},
+ {"id": "seed2", "text": "Mind-map branches leave the side of the parent that faces the child and enter the child's facing side; use curved connectors with bend around 0.5 and no arrowhead unless one is visible.", "tags": ["mindmap", "connectors", "general"], "source": "seed"},
+ {"id": "seed3", "text": "Repeated items (cards, sticky notes, bars) almost always share one exact size, colour set and font size; measure one carefully and reuse the numbers for the rest, aligning them on a common grid.", "tags": ["general", "layout"], "source": "seed"}
+]
