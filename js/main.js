@@ -3,22 +3,25 @@
 import { state, setDoc, newDoc, onChange, listDocs, loadDoc, deleteDoc, putDoc, saveNow, undo, redo, canUndo, canRedo, change, clone, uid } from './store.js';
 import { initEditor, fitPage, zoomBy, setViewMode, view, onViewChanged, render } from './editor.js';
 import { initInspector } from './inspector.js';
-import { initPalette, kindPreview, setPaletteCollapsed, paletteAutoCollapsed, paletteCollapsed } from './palette.js';
-import { initLibrary, lib, onLibraryChanged, saveTemplate, deleteTemplate, connectFolder, disconnectFolder, folderSupported, syncAllToFolder, exportBundle, importBundle, removeLesson, forgetKind, folderReady } from './library.js';
+import { initPalette, kindPreview, setPaletteCollapsed } from './palette.js';
+import { initLibrary, lib, onLibraryChanged, saveTemplate, deleteTemplate, exportBundle, importBundle, removeLesson, forgetKind } from './library.js';
 import { sceneSvg, indexDoc } from './render.js';
 import { ensureFont } from './text.js';
 import { initAgents } from './ai/agents-ui.js';
 import { replicate, refine, onRun, current, stop, styleGuide } from './ai/replicate.js';
-import { settings, saveSettings, PROVIDERS, defaultRoleModels, hasKey, mockMode } from './ai/llm.js';
+import { settings, hasKey, mockMode } from './ai/llm.js';
 import { getKind, removeKind } from './kinds.js';
 import { svgWithFonts, renderToCanvas } from './ai/raster.js';
 import { icon, welcomeDoodle } from './icons.js';
 import { displayDoc } from './theme.js';
+import { initSettings, openSettings } from './settings-ui.js';
+import { initContextToolbar } from './context-toolbar.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 let askStyle = null;
+let sideCollapsed = true, activeSide = 'inspect';
 function applyTheme() {
   let t = 'light'; try { t = localStorage.getItem('orim.theme') || 'light'; } catch (_) {}
   document.documentElement.dataset.theme = t;
@@ -60,9 +63,11 @@ async function openDoc(doc, { push = true } = {}) {
   for (const e of doc.elements) if (e.text?.font) ensureFont(e.text.font);
   view.mode = 'diagram'; // always open on the editable diagram
   setDoc(doc);
+  setPaletteCollapsed(!!doc.elements.length || !!doc.source, { auto: true });
+  showSide('inspect', { open: false });
+  setSideCollapsed(true);
   if (push) history.pushState(null, '', '#d-' + doc.id);
   updateTop();
-  if (!doc.elements.length && !doc.source && paletteCollapsed()) setPaletteCollapsed(false, { auto: true });
   welcomeDismissed = false; updateWelcome();
   setTimeout(fitPage, 30);
 }
@@ -112,58 +117,34 @@ function updateTop() {
   $('#undoBtn').disabled = !canUndo(); $('#redoBtn').disabled = !canRedo();
   const hasSrc = !!state.doc.source;
   $('#srcCtl').hidden = !hasSrc;
-  $('#replicateBtn').innerHTML = icon('ai') + (hasSrc ? (state.doc.elements.length ? 'Re-replicate' : 'Replicate') : 'Replicate image…');
+  $('#replicateBtn .action-title').textContent = hasSrc && state.doc.elements.length ? 'Re-replicate image' : 'Replicate an image';
   $('#refineBtn').hidden = !hasSrc || !state.doc.elements.length;
+  const busy = current?.status === 'running';
+  for (const id of ['askBtn', 'refineBtn', 'replicateBtn']) $('#' + id).disabled = busy;
+  $('#aiLauncher').classList.toggle('working', busy && current.docId === state.doc.id);
   syncView();
 }
 function syncView() {
   for (const b of document.querySelectorAll('#viewSeg [data-view]')) b.classList.toggle('on', b.dataset.view === view.mode);
   $('#blendSlider').hidden = view.mode !== 'both'; $('#blendSlider').value = view.blend;
 }
-function showSide(which) {
+function setSideCollapsed(value) {
+  if (value && $('#side').contains(document.activeElement)) (activeSide === 'agents' ? $('#aiLauncher') : $('#sideToggle')).focus({ preventScroll: true });
+  sideCollapsed = value;
+  $('#app').classList.toggle('side-collapsed', value);
+  $('#side').setAttribute('aria-hidden', String(value));
+  $('#sideToggle').setAttribute('aria-expanded', String(!value));
+  $('#sideToggle').title = value ? 'Open properties panel' : 'Collapse right panel';
+  const aiOpen = !value && activeSide === 'agents';
+  $('#aiLauncher').setAttribute('aria-expanded', String(aiOpen));
+  $('#aiLauncher').setAttribute('aria-label', aiOpen ? 'Close AI workspace' : 'Open AI workspace');
+  window.dispatchEvent(new Event('resize'));
+}
+function showSide(which, { open = true } = {}) {
+  activeSide = which;
   for (const b of document.querySelectorAll('[data-side]')) b.classList.toggle('on', b.dataset.side === which);
-  $('#inspector').hidden = which !== 'inspect'; $('#agents').hidden = which !== 'agents';
-}
-
-// ---------- settings ----------
-const ROLES = ['analyst', 'designer', 'critic', 'editor', 'sketch'];
-let settingsDraft = null;
-function providerFields() {
-  const s = settingsDraft, P = PROVIDERS[s.provider];
-  $('#setProvider').value = s.provider;
-  $('#setKey').value = s.keys[s.provider] || ''; $('#setKey').placeholder = P.keyHint || '';
-  $('#setKeyLink').href = P.console || '#';
-  const roles = s.providerRoles[s.provider] || defaultRoleModels(s.provider);
-  for (const r of ROLES) {
-    $('#setM-' + r).innerHTML = P.models.map(m => `<option value="${esc(m.id)}">${esc(m.name)} · $${m.in}/$${m.out}</option>`).join('');
-    $('#setM-' + r).value = P.models.some(m => m.id === roles[r]) ? roles[r] : defaultRoleModels(s.provider)[r];
-    $('#setE-' + r).value = s.effort[r];
-  }
-}
-function captureSettings() {
-  const s = settingsDraft;
-  s.keys[s.provider] = $('#setKey').value.trim();
-  s.providerRoles[s.provider] = Object.fromEntries(ROLES.map(r => [r, $('#setM-' + r).value]));
-  for (const r of ROLES) s.effort[r] = $('#setE-' + r).value;
-  s.iterations = +$('#setIter').value; s.designAttempts = +$('#setAttempts').value; s.measure = $('#setMeasure').checked; s.budget = +$('#setBudget').value;
-}
-function openSettings({ preserve = false } = {}) {
-  if (!preserve || !settingsDraft) {
-    settingsDraft = clone(settings());
-    settingsDraft.providerRoles = { ...settingsDraft.providerRoles, [settingsDraft.provider]: { ...settingsDraft.roles } };
-  }
-  const s = settingsDraft, dlg = $('#setDlg');
-  $('#setProvider').innerHTML = Object.entries(PROVIDERS).map(([k, p]) => `<option value="${k}">${esc(p.name)}</option>`).join('');
-  providerFields();
-  $('#setIter').value = s.iterations; $('#setAttempts').value = s.designAttempts; $('#setMeasure').checked = s.measure; $('#setBudget').value = s.budget;
-  $('#folderRow').innerHTML = folderSupported() ? (lib.folder ? `Connected to <b>${esc(lib.folderName)}</b> <button class="btn" type="button" id="folderSync">Write library now</button> <button class="btn" type="button" id="folderOff">Disconnect</button>` : `<button class="btn" type="button" id="folderOn">Connect project folder…</button>`) : 'Your browser cannot write to folders (use Chrome or Edge on a computer). Use Export library instead.';
-  if (!dlg.open) dlg.showModal();
-}
-function saveSettingsForm() {
-  if (!$('#setDlg form').reportValidity()) return;
-  captureSettings();
-  const s = settingsDraft; s.roles = { ...s.providerRoles[s.provider] };
-  saveSettings(s); $('#setDlg').close(); toast('Settings saved'); $('#keyNote').hidden = hasKey();
+  $('#inspector').hidden = which !== 'inspect'; $('#aiWorkspace').hidden = which !== 'agents';
+  if (open) setSideCollapsed(false);
 }
 
 // ---------- library dialog ----------
@@ -187,11 +168,16 @@ async function exportAs(kind) {
 // ---------- boot ----------
 async function boot() {
   applyTheme();
+  initSettings({ toast, onSaved: () => { $('#keyNote').hidden = hasKey(); } });
   for (const el of document.querySelectorAll('[data-icon]')) el.innerHTML = icon(el.dataset.icon);
   initEditor($('#stage'));
+  const launcher = document.createElement('button'); launcher.id = 'aiLauncher'; launcher.className = 'ai-launcher';
+  launcher.type = 'button'; launcher.setAttribute('aria-label', 'Open AI workspace'); launcher.setAttribute('aria-expanded', 'false'); launcher.setAttribute('aria-controls', 'aiWorkspace'); launcher.title = 'AI workspace'; launcher.innerHTML = icon('ai');
+  $('#stage').appendChild(launcher);
+  launcher.addEventListener('click', () => { if (!sideCollapsed && activeSide === 'agents') setSideCollapsed(true); else showSide('agents'); });
   const pill = document.createElement('div'); pill.id = 'aiPill'; pill.hidden = true; $('#stage').appendChild(pill);
   const welcome = document.createElement('div'); welcome.id = 'welcome'; welcome.hidden = true;
-  welcome.innerHTML = `<div class="card"><div class="ill">${welcomeDoodle()}</div><h2>A blank canvas. A little possibility.</h2><p>Start with a shape, an idea, or a picture.<br>Make it yours from there.</p><div class="acts"><button class="welcome-action draw" data-w="draw">${icon('draw')}<span>Draw with shapes</span></button><button class="welcome-action ask" data-w="ask">${icon('ai')}<span>Ask AI to draw it</span></button><button class="welcome-action replicate" data-w="replicate">${icon('ai')}<span>Replicate an image</span></button><button class="welcome-action templates" data-w="templates">${icon('templates')}<span>Start from a template</span></button></div></div>`;
+  welcome.innerHTML = `<div class="card"><div class="ill">${welcomeDoodle()}</div><h2>A blank canvas. A little possibility.</h2><p>Start with a shape, an idea, or a picture.<br>Make it yours from there.</p><div class="acts"><button class="welcome-action draw" data-w="draw">${icon('draw')}<span>Draw with shapes</span></button><button class="welcome-action ask" data-w="ask">${icon('ai')}<span>Ask AI to draw it</span></button><button class="welcome-action replicate" data-w="replicate">${icon('image')}<span>Replicate an image</span></button><button class="welcome-action templates" data-w="templates">${icon('templates')}<span>Start from a template</span></button></div></div>`;
   $('#stage').appendChild(welcome);
   welcome.addEventListener('click', e => {
     const b = e.target.closest('[data-w]'); if (!b) return;
@@ -201,6 +187,7 @@ async function boot() {
     if (b.dataset.w === 'templates') $('#homeBtn').click();
   });
   initInspector($('#inspector'));
+  initContextToolbar($('#stage'), { onProperties: () => showSide('inspect') });
   initAgents($('#agents'), {
     pillEl: pill,
     onImage: (src, label) => { $('#imgDlgImg').src = src; $('#imgDlgCap').textContent = label; $('#imgDlg').showModal(); },
@@ -208,18 +195,20 @@ async function boot() {
   });
   await initLibrary();
   initPalette($('#palette'));
-  onChange(() => { updateTop(); updateWelcome(); });
+  onChange(what => {
+    updateTop(); updateWelcome();
+    if (what === 'selection' && state.selection.size && !sideCollapsed) showSide('inspect');
+  });
+  $('#stage').addEventListener('pointerdown', e => {
+    if (!sideCollapsed && e.target.closest('#canvas') && state.selection.size) showSide('inspect');
+  });
   onViewChanged(syncView);
   onLibraryChanged(() => { if (!$('#home').hidden) showHome(); });
   onRun(run => {
-    if (run.status === 'running') {
-      // give the canvas room while the AI works; the panel comes back afterwards
-      if (!run.collapsedPanel) { run.collapsedPanel = true; if (!paletteCollapsed()) setPaletteCollapsed(true, { auto: true }); updateWelcome(); }
-      return;
-    }
-    if (run.collapsedPanel && !run.restoredPanel) { run.restoredPanel = true; if (paletteAutoCollapsed()) setPaletteCollapsed(false, { auto: true }); }
+    if (run.status === 'running' && !run.collapsedPanel) { run.collapsedPanel = true; setPaletteCollapsed(true, { auto: true }); }
     updateWelcome();
     updateTop();
+    if (run.status === 'running') return;
     if (!run.announced) { run.announced = true; toast(run.status === 'done' ? `${run.finish?.title || 'Done'}${run.final != null ? ` — similarity ${run.final}/100` : ''}` : run.status === 'stopped' ? 'Stopped' : 'Stopped with an error — see the Agents tab', 4000); }
   });
 
@@ -301,16 +290,12 @@ async function boot() {
   document.addEventListener('click', e => { if (!e.target.closest('#exportMenu')) $('#exportMenu').hidden = true; });
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#libraryBtn').addEventListener('click', openLibrary);
+  $('#aiSettings').addEventListener('click', openSettings);
+  $('#sideToggle').addEventListener('click', () => { if (sideCollapsed) showSide('inspect'); else setSideCollapsed(true); });
+  $('#sideClose').addEventListener('click', () => setSideCollapsed(true));
   for (const b of document.querySelectorAll('[data-side]')) b.addEventListener('click', () => showSide(b.dataset.side));
 
   // dialogs
-  $('#setSave').addEventListener('click', e => { e.preventDefault(); saveSettingsForm(); });
-  $('#setProvider').addEventListener('change', () => { const next = $('#setProvider').value; captureSettings(); settingsDraft.provider = next; providerFields(); });
-  $('#setDlg').addEventListener('click', async e => {
-    if (e.target.id === 'folderOn') { try { captureSettings(); await connectFolder(); toast('Folder connected — learned shapes and lessons are written to its library/'); openSettings({ preserve: true }); } catch (_) {} }
-    if (e.target.id === 'folderOff') { captureSettings(); await disconnectFolder(); openSettings({ preserve: true }); }
-    if (e.target.id === 'folderSync') { const n = await syncAllToFolder(); toast(`Wrote ${n} items to the folder`); }
-  });
   $('#libDlg').addEventListener('click', async e => {
     const f = e.target.closest('[data-forget]'); if (f) { await forgetKind(f.dataset.forget); removeKind(f.dataset.forget); openLibrary(); return; }
     const l = e.target.closest('[data-dellesson]'); if (l) { await removeLesson(l.dataset.dellesson); openLibrary(); return; }

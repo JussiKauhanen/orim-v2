@@ -23,6 +23,8 @@ const paths = {
   chevron: '<path d="m9 5 7 7-7 7"/>',
   close: '<path d="m6 6 12 12M6 18 18 6"/>',
   check: '<path d="m5 12 4 4L19 6"/>',
+  properties: '<path d="M5 3v5m0 4v9M12 3v10m0 4v4M19 3v2m0 4v12M2 8h6m1 9h6m1-12h6"/>',
+  refine: '<path d="M20 7v5h-5M4 17v-5h5"/><path d="M19 12a7 7 0 0 0-12-5L4 10m1 2a7 7 0 0 0 12 5l3-3"/>',
 };
 
 export function icon(name, className = '') {

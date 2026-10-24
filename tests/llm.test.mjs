@@ -1,7 +1,7 @@
 import test, { beforeEach, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
-import { complete, settings, saveSettings, defaultRoleModels, hasKey, modelInfo, cost, AIError } from '../js/ai/llm.js';
+import { complete, settings, saveSettings, defaultRoleModels, qualityPreset, PROVIDERS, hasKey, modelInfo, cost, AIError } from '../js/ai/llm.js';
 
 // No provider calls or real keys: HTTP is replaced and the lazy Claude SDK import
 // resolves to this small stand-in, so its existing request contract is checked too.
@@ -73,6 +73,66 @@ test('settings preserve Claude roles and restore valid per-provider models', () 
   assert.equal(hasKey(), false);
 });
 
+test('fresh settings use Medium and existing custom settings keep their saved values', () => {
+  assert.equal(settings().provider, 'anthropic');
+  for (const provider of Object.keys(PROVIDERS)) {
+    saveSettings({ provider });
+    const current = settings(), preset = qualityPreset(provider, 'medium');
+    for (const key of Object.keys(preset)) assert.deepEqual(current[key], preset[key]);
+  }
+  const custom = { provider: 'anthropic', roles: defaultRoleModels('anthropic'), effort: { analyst: 'xhigh', designer: 'high', critic: 'high', editor: 'low', sketch: 'medium' }, iterations: 6, designAttempts: 5, budget: 12, measure: false, keys: { anthropic: 'test-existing-key' }, v: 2 };
+  saveSettings(custom);
+  for (const key of Object.keys(custom)) assert.deepEqual(settings()[key], custom[key]);
+});
+
+test('quality presets use available models and progressively increase the work budget', () => {
+  use('openai');
+  const before = local.get('orim.ai.settings');
+  for (const provider of Object.keys(PROVIDERS)) {
+    const models = PROVIDERS[provider].models;
+    const cheap = models.reduce((a, b) => a.in + a.out < b.in + b.out ? a : b);
+    const presets = ['cheap', 'medium', 'high'].map(tier => qualityPreset(provider, tier));
+    for (const preset of presets) {
+      assert.equal(Object.keys(preset.roles).length, 5);
+      assert.ok(Object.values(preset.roles).every(id => models.some(model => model.id === id)));
+      assert.ok(Object.values(preset.effort).every(effort => ['low', 'medium', 'high'].includes(effort)));
+      assert.equal(preset.roles.sketch, cheap.id);
+      assert.equal(preset.effort.sketch, 'low');
+      assert.equal(preset.measure, true);
+      assert.equal('keys' in preset, false);
+    }
+    assert.ok(Object.values(presets[0].roles).every(id => id === cheap.id));
+    assert.deepEqual(presets.map(p => p.iterations), [1, 2, 3]);
+    assert.deepEqual(presets.map(p => p.designAttempts), [1, 2, 3]);
+    assert.deepEqual(presets.map(p => p.budget), [1, 3, 8]);
+  }
+  assert.equal(local.get('orim.ai.settings'), before);
+  const changed = qualityPreset('openai', 'cheap'); changed.roles.analyst = 'changed';
+  assert.equal(qualityPreset('openai', 'cheap').roles.analyst, 'gpt-6-luna');
+});
+
+test('provider quality, tuning and role choices survive provider switches without changing keys', () => {
+  const cheap = qualityPreset('openai', 'cheap'), high = qualityPreset('google', 'high');
+  const { roles: openaiRoles, ...openaiTuning } = cheap;
+  const { roles: googleRoles, ...googleTuning } = high;
+  const keys = { openai: 'test-openai', google: 'test-google', anthropic: 'test-claude' };
+  saveSettings({ provider: 'openai', keys, providerRoles: { openai: openaiRoles, google: googleRoles }, providerQuality: { openai: 'cheap', google: 'high' }, providerTuning: { openai: openaiTuning, google: googleTuning } });
+  assert.deepEqual(settings().roles, openaiRoles);
+  assert.equal(settings().budget, cheap.budget);
+  assert.deepEqual(settings().effort, cheap.effort);
+  saveSettings({ ...settings(), provider: 'google' });
+  assert.deepEqual(settings().roles, googleRoles);
+  assert.equal(settings().budget, high.budget);
+  assert.deepEqual(settings().effort, high.effort);
+  assert.equal(settings().providerQuality.google, 'high');
+  saveSettings({ ...settings(), provider: 'openai' });
+  assert.deepEqual(settings().roles, openaiRoles);
+  assert.equal(settings().iterations, cheap.iterations);
+  assert.equal(settings().designAttempts, cheap.designAttempts);
+  assert.equal(settings().providerQuality.openai, 'cheap');
+  assert.deepEqual(settings().keys, keys);
+});
+
 test('OpenAI streams split UTF-8 and multiline SSE into the existing callbacks', async () => {
   use('openai', { effort: { analyst: 'high' } });
   const text = [], thinking = [], ctl = new AbortController();
@@ -87,7 +147,7 @@ test('OpenAI streams split UTF-8 and multiline SSE into the existing callbacks',
     assert.deepEqual(body.reasoning, { effort: 'high', summary: 'auto' });
     assert.deepEqual(body.text, { format: { type: 'json_object' } });
     assert.equal(body.stream, true); assert.equal(body.store, false);
-    assert.deepEqual(body.input[0].content, [{ type: 'input_image', image_url: 'data:image/png;base64,c291cmNl', detail: 'high' }, { type: 'input_text', text: 'Match the source.' }]);
+    assert.deepEqual(body.input[0].content.slice(0, input.content.length), [{ type: 'input_image', image_url: 'data:image/png;base64,c291cmNl', detail: 'high' }, { type: 'input_text', text: 'Match the source.' }]);
     assert.ok(!options.body.includes('test-other-key'));
     return sse([{ type: 'response.reasoning_summary_text.delta', delta: 'Mätsätään…' }, { type: 'response.output_text.delta', delta: '{"ops":' }, { type: 'response.output_text.delta', delta: '[]}' }, finished('gpt-6.1-sol-2026-10-01')], { bytes: 1, pretty: true });
   };
@@ -98,6 +158,26 @@ test('OpenAI streams split UTF-8 and multiline SSE into the existing callbacks',
   assert.deepEqual(result.usage, { input_tokens: 600, cache_creation_input_tokens: 100, cache_read_input_tokens: 300, output_tokens: 200 });
   assert.equal(result.cost, (600 * 2 + 100 * 2 * 1.25 + 300 * 0.1 + 200 * 10) / 1e6);
   assert.equal(result.stop, 'end_turn');
+});
+
+test('every OpenAI role includes the JSON instruction in input messages', async () => {
+  use('openai');
+  const roles = [];
+  globalThis.fetch = async (url, options) => {
+    const body = JSON.parse(options.body);
+    const messages = body.input.flatMap(message => message.content).filter(part => part.type === 'input_text').map(part => part.text);
+    // Reproduce the Responses API validation: instructions alone do not satisfy it.
+    if (body.text.format.type === 'json_object' && !messages.some(text => /\bjson\b/i.test(text))) return new Response(JSON.stringify({ error: { message: "Response input messages must contain the word 'json' in some form to use 'text.format' of type 'json_object'." } }), { status: 400 });
+    assert.ok(messages.some(text => /return.*json/i.test(text)));
+    roles.push(body.model);
+    return sse([{ type: 'response.output_text.delta', delta: '{"ops":[]}' }, finished(body.model)]);
+  };
+  for (const role of ['analyst', 'designer', 'critic', 'editor', 'sketch']) {
+    const result = await complete({ role, system: 'Return JSON in the requested format.', content: role === 'sketch' ? [{ type: 'text', text: 'Draw a simple flow.' }] : input.content });
+    assert.equal(result.text, '{"ops":[]}');
+  }
+  assert.equal(roles.length, 5);
+  assert.equal(roles.at(-1), 'gpt-6-luna');
 });
 
 test('Gemini streams thought parts separately and bills the final cumulative usage once', async () => {
@@ -128,7 +208,7 @@ test('Gemini streams thought parts separately and bills the final cumulative usa
 });
 
 test('Claude retains adaptive thinking, source caching, callbacks and SDK retries', async () => {
-  use('anthropic');
+  use('anthropic', { roles: defaultRoleModels('anthropic') });
   const text = [], thinking = [], ctl = new AbortController();
   const result = await complete({ ...input, signal: ctl.signal, onText: t => text.push(t), onThinking: t => thinking.push(t) });
   const call = sdkCalls[0];

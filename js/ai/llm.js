@@ -43,22 +43,41 @@ export function defaultRoleModels(provider = 'anthropic') {
   return { analyst: main, designer: main, critic: main, editor: main, sketch };
 }
 
+// Complete, editable starting points for the simple quality picker. No keys or
+// saved settings are touched; the settings dialog applies a preset to its draft.
+export function qualityPreset(provider, tier = 'medium') {
+  provider = Object.hasOwn(PROVIDERS, provider) ? provider : 'anthropic';
+  const [cheap, balanced, strongest] = {
+    anthropic: ['claude-haiku-5-5', 'claude-sonnet-5-5', 'claude-fable-5-1'],
+    openai: ['gpt-6-luna', 'gpt-6.1-sol', 'gpt-6-astra'],
+    google: ['gemini-3.8-flash', 'gemini-4-argon', 'gemini-4-argon'],
+  }[provider];
+  const low = tier === 'cheap', high = tier === 'high';
+  const main = low ? cheap : high ? strongest : balanced;
+  return {
+    roles: { analyst: main, designer: main, critic: main, editor: main, sketch: cheap },
+    effort: { analyst: low ? 'medium' : 'high', designer: low ? 'low' : high ? 'high' : 'medium', critic: low ? 'low' : high ? 'high' : 'medium', editor: low ? 'low' : high ? 'high' : 'medium', sketch: 'low' },
+    iterations: low ? 1 : high ? 3 : 2,
+    designAttempts: low ? 1 : high ? 3 : 2,
+    budget: low ? 1 : high ? 8 : 3,
+    measure: true,
+  };
+}
+
 const DEFAULTS = {
   provider: 'anthropic', keys: {},
-  roles: defaultRoleModels(),
-  // Medium effort for critic and editor: their work is mostly mechanical edits, and reasoning tokens are billed as output.
-  effort: { analyst: 'high', designer: 'medium', critic: 'medium', editor: 'medium', sketch: 'low' },
-  iterations: 3, designAttempts: 3, measure: true, budget: 3, v: 2,
+  ...qualityPreset('anthropic', 'medium'), v: 2,
 };
 export function settings() {
   let s = {}; try { s = JSON.parse(localStorage.getItem(LS) || '{}'); } catch (_) {}
   if (!s || typeof s !== 'object' || Array.isArray(s)) s = {};
   if (s.effort && (s.v || 1) < 2) { if (s.effort.critic === 'high') s.effort.critic = 'medium'; s.v = 2; }
   const provider = Object.hasOwn(PROVIDERS, s.provider) ? s.provider : DEFAULTS.provider;
+  const tuning = s.providerTuning?.[provider] || {};
   const saved = { ...(s.roles || {}), ...(s.providerRoles?.[provider] || {}) };
-  const roles = defaultRoleModels(provider);
+  const roles = qualityPreset(provider, 'medium').roles;
   for (const role of Object.keys(roles)) if (PROVIDERS[provider].models.some(m => m.id === saved[role])) roles[role] = saved[role];
-  return { ...DEFAULTS, ...s, provider, roles, providerRoles: { ...(s.providerRoles || {}), [provider]: { ...roles } }, effort: { ...DEFAULTS.effort, ...(s.effort || {}) }, keys: { ...(s.keys || {}) } };
+  return { ...DEFAULTS, ...s, ...tuning, provider, roles, providerRoles: { ...(s.providerRoles || {}), [provider]: { ...roles } }, effort: { ...DEFAULTS.effort, ...(s.effort || {}), ...(tuning.effort || {}) }, keys: { ...(s.keys || {}) } };
 }
 export function saveSettings(s) { try { localStorage.setItem(LS, JSON.stringify(s)); } catch (_) {} }
 export const mockMode = () => { try { if (/[?&]mock\b/.test(location.search)) sessionStorage.setItem('orim.mock', '1'); return sessionStorage.getItem('orim.mock') === '1'; } catch (_) { return false; } };
@@ -185,7 +204,8 @@ async function openAI({ key, model, system, content, maxTokens, signal, onText, 
     max_output_tokens: Math.min(maxTokens, 128000),
     reasoning: { effort, summary: 'auto' },
     text: { format: { type: 'json_object' } },
-    input: [{ role: 'user', content: content.map(b => b.type === 'image' ? { type: 'input_image', image_url: `data:${b.mime};base64,${b.data}`, detail: 'high' } : { type: 'input_text', text: b.text }) }],
+    // JSON mode validates the input messages, separately from `instructions`.
+    input: [{ role: 'user', content: [...content.map(b => b.type === 'image' ? { type: 'input_image', image_url: `data:${b.mime};base64,${b.data}`, detail: 'high' } : { type: 'input_text', text: b.text }), { type: 'input_text', text: 'Return only a valid JSON object following the format in the instructions.' }] }],
   };
   let text = '', final = null;
   for await (const event of streamJson('https://api.openai.com/v1/responses', { Authorization: 'Bearer ' + key }, body, signal)) {

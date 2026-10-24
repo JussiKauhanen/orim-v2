@@ -28,7 +28,7 @@ const steps = new Map();
 
 function empty() {
   mountedRun = null; steps.clear();
-  root.innerHTML = `<div class="ag-empty"><span class="ag-empty-mark">${icon('ai')}</span><h3>Your AI workspace</h3><p>Ask for a diagram or bring an image. Follow each agent's work here as it takes shape.</p><div class="ag-team">${['analyst', 'designer', 'critic'].map(k => `<div>${avatar(AGENTS[k])}<span>${AGENTS[k].name}</span></div>`).join('')}</div><button type="button" class="btn ag-ask" data-act="ask">${icon('ai')}Ask AI</button></div>`;
+  root.innerHTML = `<div class="ag-empty"><h3>A small team, one canvas</h3><p>Choose an action above. Follow each agent's work here as your diagram takes shape.</p><div class="ag-team">${['analyst', 'designer', 'critic'].map(k => `<div>${avatar(AGENTS[k])}<span>${AGENTS[k].name}</span></div>`).join('')}</div></div>`;
   root.scrollTop = 0;
   drawPill();
 }
@@ -85,7 +85,7 @@ function spark(scores) {
 }
 function mount(run) {
   mountedRun = run.id; steps.clear(); root.scrollTop = 0;
-  root.innerHTML = `<section class="ag-head ag-overview"><div class="ag-overview-top"><h3>Overview</h3><span class="ag-run-status"></span></div><div class="ag-run-heading"><span class="ag-ai-mark">${icon('ai')}</span><div><b class="ag-run-title"></b><span class="ag-current"></span></div></div><dl class="ag-metrics"><div><dt>Time</dt><dd class="ag-time"></dd></div><div><dt>Cost</dt><dd class="ag-cost"></dd></div><div class="ag-score-metric" hidden><dt>Similarity</dt><dd class="ag-score"></dd></div></dl><div class="ag-chart" hidden></div><button type="button" class="btn ag-stop" data-stop>${svg('<rect x="7" y="7" width="10" height="10" rx="2"/>')}Stop</button><p class="err ag-error" hidden></p></section><section class="ag-activity"><button type="button" class="ag-section-toggle" data-activity aria-expanded="true">${svg('<path d="M4 12h4l3-7 4 14 3-7h2"/>')}<span>Activity</span><small class="ag-count"></small>${chevron}</button><div class="ag-steps" role="list"></div></section><section class="ag-finish" hidden></section>`;
+  root.innerHTML = `<section class="ag-head ag-overview"><div class="ag-overview-top"><h3>Overview</h3><span class="ag-run-status"></span></div><div class="ag-run-heading"><div><b class="ag-run-title"></b><span class="ag-current"></span></div></div><dl class="ag-metrics"><div><dt>Time</dt><dd class="ag-time"></dd></div><div><dt>Cost</dt><dd class="ag-cost"></dd></div><div class="ag-score-metric" hidden><dt>Similarity</dt><dd class="ag-score"></dd></div></dl><div class="ag-chart" hidden></div><button type="button" class="btn ag-stop" data-stop>${svg('<rect x="7" y="7" width="10" height="10" rx="2"/>')}Stop</button><p class="err ag-error" hidden></p></section><section class="ag-activity"><button type="button" class="ag-section-toggle" data-activity aria-expanded="true">${svg('<path d="M4 12h4l3-7 4 14 3-7h2"/>')}<span>Activity</span><small class="ag-count"></small>${chevron}</button><div class="ag-steps" role="list"></div></section><section class="ag-finish" hidden></section>`;
 }
 function createStep(s) {
   const a = AGENTS[s.agent] || AGENTS.critic, el = document.createElement('article');
@@ -144,6 +144,6 @@ function draw() {
   setText(q('.ag-count'), run.steps.length);
   for (const step of run.steps) drawStep(step);
   const finish = q('.ag-finish'); finish.hidden = !(run.finish && run.status === 'done');
-  if (!finish.hidden) setHtml(finish, `<div class="ag-finish-heading">${svg('<path d="m5 12 4 4L19 6"/>')}<b>${esc(run.finish.title)}</b></div><p>${esc(run.finish.text)}</p><div class="ag-acts">${run.finish.undo ? '<button type="button" class="btn" data-act="undo">Undo</button>' : ''}${run.finish.refine ? `<button type="button" class="btn ag-ask" data-act="refine">${icon('ai')}Refine one more round</button>` : ''}<button type="button" class="btn ag-ask" data-act="ask">${icon('ai')}Ask AI for a change</button></div>`);
+  if (!finish.hidden) setHtml(finish, `<div class="ag-finish-heading">${svg('<path d="m5 12 4 4L19 6"/>')}<b>${esc(run.finish.title)}</b></div><p>${esc(run.finish.text)}</p><div class="ag-acts">${run.finish.undo ? '<button type="button" class="btn" data-act="undo">Undo</button>' : ''}</div>`);
   root.scrollTop = follow && !newRun ? root.scrollHeight : top;
 }
