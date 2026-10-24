@@ -51,3 +51,18 @@ export async function renderToCanvas(doc, { scale = 1, width, height } = {}) {
     return c;
   } finally { setTimeout(() => URL.revokeObjectURL(url), 2000); }
 }
+
+// A separate image for the user's request; the clean canvas remains unchanged.
+export function canvasWithHighlights(clean, strokes) {
+  const canvas = document.createElement('canvas'); canvas.width = clean.width; canvas.height = clean.height;
+  const ctx = canvas.getContext('2d'); ctx.drawImage(clean, 0, 0);
+  ctx.strokeStyle = '#ffd52a'; ctx.globalAlpha = .4; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const stroke of strokes) {
+    if (!stroke.points.length) continue;
+    ctx.lineWidth = stroke.width; ctx.beginPath();
+    stroke.points.forEach(([x, y], i) => i ? ctx.lineTo(x, y) : ctx.moveTo(x, y));
+    if (stroke.points.length === 1) ctx.lineTo(stroke.points[0][0] + .01, stroke.points[0][1]);
+    ctx.stroke();
+  }
+  return canvas;
+}

@@ -643,7 +643,7 @@ function onKey(e) {
   if (e.defaultPrevented || !state.doc || document.getElementById('app').hidden || e.target.closest?.('dialog[open]')) return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
-  if (tag === 'button' && (e.key === 'Enter' || e.code === 'Space' || e.key.startsWith('Arrow'))) return;
+  if (['button', 'summary'].includes(tag) && (e.key === 'Enter' || e.code === 'Space' || e.key.startsWith('Arrow'))) return;
   const mod = e.metaKey || e.ctrlKey;
   if (e.code === 'Space' && !spaceDown) { spaceDown = true; svg.style.cursor = 'grab'; e.preventDefault(); return; }
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }

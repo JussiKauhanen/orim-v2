@@ -19,12 +19,14 @@ import { initSettings, openSettings } from './settings-ui.js';
 import { initContextToolbar } from './context-toolbar.js';
 import { initReplicateImage } from './replicate-image.js';
 import { providerMark, providerNames } from './ai/provider-ui.js';
+import { initHighlighter } from './ai/highlighter.js';
+import { initAgentPresence } from './ai/agent-presence.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-let aiChat, repImage, displayedProvider;
-let sideCollapsed = true, activeSide = 'inspect';
+let aiChat, repImage, displayedProvider, highlighter, agentsUI;
+let sideCollapsed = true;
 function applyTheme() {
   let t = 'light'; try { t = localStorage.getItem('orim.theme') || 'light'; } catch (_) {}
   document.documentElement.dataset.theme = t;
@@ -68,7 +70,7 @@ async function openDoc(doc, { push = true } = {}) {
   editorApi.setTool('select');
   setDoc(doc);
   setPaletteCollapsed(!!doc.elements.length || !!doc.source, { auto: true });
-  showSide('inspect', { open: false });
+  setAIExpanded(false);
   setSideCollapsed(true);
   if (push) history.pushState(null, '', '#d-' + doc.id);
   updateTop();
@@ -134,7 +136,7 @@ function syncView() {
   $('#blendSlider').hidden = view.mode !== 'both'; $('#blendSlider').value = view.blend;
 }
 function setSideCollapsed(value) {
-  if (value && $('#side').contains(document.activeElement)) (activeSide === 'ai' ? $('#aiLauncher') : $('#sideToggle')).focus({ preventScroll: true });
+  if (value && $('#side').contains(document.activeElement)) $('#sideToggle').focus({ preventScroll: true });
   sideCollapsed = value;
   $('#app').classList.toggle('side-collapsed', value);
   $('#side').setAttribute('aria-hidden', String(value));
@@ -142,18 +144,10 @@ function setSideCollapsed(value) {
   $('#sideToggle').title = value ? 'Open properties panel' : 'Collapse right panel';
   window.dispatchEvent(new Event('resize'));
 }
-function showSide(which, { open = true } = {}) {
-  activeSide = which;
-  for (const b of document.querySelectorAll('[data-side]')) {
-    const selected = b.dataset.side === which;
-    b.classList.toggle('on', selected); b.setAttribute('aria-selected', String(selected)); b.tabIndex = selected ? 0 : -1;
-  }
-  $('#inspector').hidden = which !== 'inspect'; $('#aiWorkspace').hidden = which !== 'ai'; $('#agents').hidden = which !== 'agents';
-  setAIExpanded(which === 'ai' && open);
-  if (open) setSideCollapsed(false);
-}
+function showProperties() { setSideCollapsed(false); }
 function setAIExpanded(value) {
   aiChat?.setExpanded(value);
+  if (!value) highlighter?.setActive(false);
   $('#app').classList.toggle('ai-chat-open', value);
   $('#aiLauncher').hidden = value;
   $('#aiLauncher').setAttribute('aria-expanded', String(value));
@@ -164,7 +158,6 @@ function updateProviderMark() {
   displayedProvider = provider;
   $('#aiLauncher').innerHTML = providerMark(provider);
   $('#aiLauncher').title = `Ask ${providerNames[provider]}`;
-  $('#aiTab [data-icon]').innerHTML = providerMark(provider);
 }
 function openAI() { welcomeDismissed = true; updateWelcome(); setAIExpanded(true); aiChat.focus(); }
 function chooseReplicationImage() {
@@ -202,7 +195,8 @@ async function boot() {
   updateProviderMark();
   launcher.addEventListener('click', openAI);
   repImage = initReplicateImage($('#repDlg'));
-  const pill = document.createElement('div'); pill.id = 'aiPill'; pill.hidden = true; $('#stage').appendChild(pill);
+  highlighter = initHighlighter($('#stage'), { onUpdate: () => aiChat?.refresh() });
+  initAgentPresence($('#stage'));
   const welcome = document.createElement('div'); welcome.id = 'welcome'; welcome.hidden = true;
   welcome.innerHTML = `<div class="card"><div class="ill">${welcomeDoodle()}</div><h2>A blank canvas. A little possibility.</h2><p>Start with a shape, an idea, or a picture.<br>Make it yours from there.</p><div class="acts"><button class="welcome-action draw" data-w="draw">${icon('draw')}<span>Draw with shapes</span></button><button class="welcome-action ask" data-w="ask">${icon('ai')}<span>Ask AI to draw it</span></button><button class="welcome-action replicate" data-w="replicate">${icon('image')}<span>Replicate an image</span></button><button class="welcome-action templates" data-w="templates">${icon('templates')}<span>Start from a template</span></button></div></div>`;
   $('#stage').appendChild(welcome);
@@ -214,43 +208,42 @@ async function boot() {
     if (b.dataset.w === 'templates') $('#homeBtn').click();
   });
   initInspector($('#inspector'));
-  initContextToolbar($('#stage'), { onProperties: () => showSide('inspect') });
-  aiChat = initAIChat($('#aiWorkspace'), {
-    stage: $('#stage'), onOpen: openAI, onClose: () => { setAIExpanded(false); $('#aiLauncher').focus(); }, onPanel: () => showSide('ai'),
+  initContextToolbar($('#stage'), { onProperties: showProperties });
+  aiChat = initAIChat($('#stage'), {
+    highlighter, onOpen: openAI, onClose: () => { setAIExpanded(false); $('#aiLauncher').focus(); },
     templates: () => lib.templates,
-    onSettings: openSettings, onAgents: () => showSide('agents'),
+    onSettings: openSettings, onAgents: () => agentsUI.show(),
     onAttach: chooseReplicationImage,
     onRefine: () => { if (!hasKey()) return openSettings(); openAI(); refine({ rounds: 1 }); },
     onSend: (instructions, templateId) => {
       if (!hasKey()) { openSettings(); return false; }
       const t = lib.templates.find(t => t.id === templateId);
       if (t) change(d => { d.page.background = t.doc.page.background; d.page.pattern = t.doc.page.pattern || null; });
-      refine({ rounds: 1, instructions, style: t ? styleGuide(t.doc) : '' });
+      const highlights = highlighter.snapshot(); highlighter.setActive(false);
+      refine({ rounds: 1, instructions, style: t ? styleGuide(t.doc) : '', highlights });
       return true;
     },
   });
-  initAgents($('#agents'), {
-    pillEl: pill,
+  const popups = document.createElement('section'); popups.id = 'agents'; popups.className = 'agent-popups'; popups.hidden = true; popups.setAttribute('aria-label', 'Agent activity'); $('#stage').appendChild(popups);
+  agentsUI = initAgents(popups, {
     onImage: (src, label) => { $('#imgDlgImg').src = src; $('#imgDlgCap').textContent = label; $('#imgDlg').showModal(); },
     onAction: act => { if (act === 'undo') undo(); else if (act === 'ask') openAI(); else if (act === 'refine') $('#refineBtn').click(); },
   });
   await initLibrary();
   initPalette($('#palette'));
-  onChange(what => {
+  onChange(() => {
     updateTop(); updateWelcome();
-    if (what === 'selection' && state.selection.size && !sideCollapsed) showSide('inspect');
-  });
-  $('#stage').addEventListener('pointerdown', e => {
-    if (!sideCollapsed && e.target.closest('#canvas') && state.selection.size) showSide('inspect');
   });
   onViewChanged(syncView);
   onLibraryChanged(() => { if (!$('#home').hidden) showHome(); });
   onRun(run => {
+    if (run.status === 'running') highlighter.setActive(false);
+    else if (run.status === 'done' && run.highlights?.length && run.docId === state.doc?.id) highlighter.clear();
     if (run.status === 'running' && !run.collapsedPanel) { run.collapsedPanel = true; setPaletteCollapsed(true, { auto: true }); }
     updateWelcome();
     updateTop();
     if (run.status === 'running') return;
-    if (!run.announced) { run.announced = true; toast(run.status === 'done' ? `${run.finish?.title || 'Done'}${run.final != null ? ` — similarity ${run.final}/100` : ''}` : run.status === 'stopped' ? 'Stopped' : 'Stopped with an error — see the Agents tab', 4000); }
+    if (!run.announced) { run.announced = true; toast(run.status === 'done' ? `${run.finish?.title || 'Done'}${run.final != null ? ` — similarity ${run.final}/100` : ''}` : run.status === 'stopped' ? 'Stopped' : 'Stopped with an error — see Agent activity', 4000); }
   });
 
   // home events
@@ -307,16 +300,8 @@ async function boot() {
   document.addEventListener('click', e => { if (!e.target.closest('#exportMenu')) $('#exportMenu').hidden = true; });
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#libraryBtn').addEventListener('click', openLibrary);
-  $('#sideToggle').addEventListener('click', () => { if (sideCollapsed) showSide('inspect'); else setSideCollapsed(true); });
+  $('#sideToggle').addEventListener('click', () => setSideCollapsed(!sideCollapsed));
   $('#sideClose').addEventListener('click', () => setSideCollapsed(true));
-  for (const b of document.querySelectorAll('[data-side]')) b.addEventListener('click', () => showSide(b.dataset.side));
-  $('#side .tabs').addEventListener('keydown', e => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
-    e.preventDefault(); e.stopPropagation();
-    const tabs = [...document.querySelectorAll('[data-side]')], at = tabs.indexOf(e.target);
-    const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
-    showSide(tabs[next].dataset.side); tabs[next].focus();
-  });
 
   // dialogs
   $('#libDlg').addEventListener('click', async e => {

@@ -5,40 +5,34 @@ import { state, onChange } from '../store.js';
 import { modelInfo } from './llm.js';
 import { icon } from '../icons.js';
 
-const AGENTS = {
-  eye: { name: 'Preparation', tone: 'preparation', icon: '<circle cx="12" cy="12" r="3"/><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/>' },
-  analyst: { name: 'Vision analyst', tone: 'analyst', icon: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 17.5h7M17.5 14v7"/>' },
-  ruler: { name: 'Measurer', tone: 'measurer', icon: '<path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/>' },
-  designer: { name: 'Shape designer', tone: 'designer', icon: '<path d="m12 3 8 8-6 9-4-6-6-4zM10 14l4-3M4 20l6-6"/><circle cx="14" cy="10" r="1.5"/>' },
-  critic: { name: 'Critic', tone: 'critic', icon: '<circle cx="10.5" cy="10.5" r="7"/><path d="m20.5 20.5-5-5M7.5 10.5l2 2 4-4"/>' },
-  editor: { name: 'AI editor', tone: 'editor', icon: '<path d="m14 5 5 5M4 20l4.5-1L20 7.5a2.1 2.1 0 0 0-3-3L5.5 16zM12 20h8"/>' },
-  sketch: { name: 'Quick sketch', tone: 'sketch', icon: '<path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M8 15l3-4 3 2 3-5"/>' },
-};
+import { AGENTS } from './agent-meta.js';
+
 const svg = (body, cls = '') => `<svg viewBox="0 0 24 24" class="${cls}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
 const chevron = svg('<path d="m9 5 7 7-7 7"/>', 'ag-chevron');
-const avatar = a => `<span class="ag-avatar ${a.tone}" title="${a.name}">${svg(a.icon)}</span>`;
+const avatar = a => `<span class="ag-avatar ${a.tone}" style="color:${a.color}" title="${a.name}">${svg(a.icon)}</span>`;
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const dur = ms => { const n = Math.max(0, Math.round(ms / 1000)); return n < 60 ? n + 's' : Math.floor(n / 60) + 'm ' + n % 60 + 's'; };
 const kTok = n => n >= 1000 ? (n / 1000).toFixed(1) + 'k' : String(Math.round(n));
 const statusLabel = s => ({ running: 'Working', done: 'Completed', error: 'Error', stopped: 'Stopped', skipped: 'Skipped' })[s] || s;
 const setText = (el, value) => { const text = String(value ?? ''); if (el.textContent !== text) el.textContent = text; };
 const setHtml = (el, html) => { if (el._html !== html) { el.innerHTML = html; el._html = html; } };
-let root, pill, last = null, timer = 0, mountedRun = null, actions, imageAction, deferred = false;
+let root, last = null, timer = 0, mountedRun = null, actions, imageAction, deferred = false;
 const steps = new Map();
 
 function empty() {
   mountedRun = null; steps.clear();
-  root.innerHTML = `<div class="ag-empty"><h3>A small team, one canvas</h3><p>Start in the AI tab. Follow each agent's work here as your diagram takes shape.</p><div class="ag-team">${['analyst', 'designer', 'critic'].map(k => `<div>${avatar(AGENTS[k])}<span>${AGENTS[k].name}</span></div>`).join('')}</div><button type="button" class="btn" data-act="ask">Open AI</button></div>`;
+  root.innerHTML = toolbar() + `<div class="ag-empty"><h3>A small team, one canvas</h3><p>Send a message or replicate an image. Each agent’s work appears here.</p><div class="ag-team">${['analyst', 'designer', 'critic'].map(k => `<div>${avatar(AGENTS[k])}<span>${AGENTS[k].name}</span></div>`).join('')}</div><button type="button" class="btn" data-act="ask">Open chat</button></div>`;
   root.scrollTop = 0;
-  drawPill();
 }
-export function initAgents(el, { onImage, onAction, pillEl } = {}) {
-  root = el; pill = pillEl; actions = onAction || (() => {}); imageAction = onImage;
+export function initAgents(el, { onImage, onAction } = {}) {
+  root = el; actions = onAction || (() => {}); imageAction = onImage;
   root.classList.add('agent-panel'); empty();
-  onRun(run => { if (run && run.docId === state.doc?.id) { last = run; draw(); } });
-  onChange(what => { if (what === 'doc') { last = state.doc ? runFor(state.doc.id) : null; if (last) draw(); else empty(); } });
+  let shownDoc;
+  onRun(run => { if (run && run.docId === state.doc?.id) { if (run.id !== last?.id) root.hidden = false; last = run; draw(); } });
+  onChange(() => { if (state.doc?.id !== shownDoc) { shownDoc = state.doc?.id; last = state.doc ? runFor(state.doc.id) : null; root.hidden = true; if (last) draw(); else empty(); } });
   clearInterval(timer); timer = setInterval(() => { if (last?.status === 'running') draw(); }, 1000);
   root.addEventListener('click', e => {
+    if (e.target.closest('[data-agents-close]')) { root.hidden = true; return; }
     const activity = e.target.closest('[data-activity]');
     if (activity) { const expanded = activity.getAttribute('aria-expanded') !== 'true'; activity.setAttribute('aria-expanded', expanded); root.querySelector('.ag-steps').hidden = !expanded; return; }
     const toggle = e.target.closest('[data-step-toggle], [data-toggle]');
@@ -54,7 +48,9 @@ export function initAgents(el, { onImage, onAction, pillEl } = {}) {
     const im = e.target.closest('img[data-full]'); if (im && imageAction) imageAction(im.src, im.alt);
   });
   document.addEventListener('selectionchange', () => { if (deferred && !hasSelection()) draw(); });
+  return { show() { root.hidden = false; draw(); }, hide() { root.hidden = true; } };
 }
+function toolbar() { return `<div class="ag-popup-toolbar"><b>Agent activity</b><button type="button" class="ib" data-agents-close aria-label="Close agent activity">${icon('close')}</button></div>`; }
 function hasSelection() {
   const s = window.getSelection();
   return s && !s.isCollapsed && (root.contains(s.anchorNode) || root.contains(s.focusNode));
@@ -68,15 +64,6 @@ function elapsed(run) {
   const end = run.status === 'running' ? Date.now() : Math.max(run.started, ...run.steps.map(s => s.ended || s.started));
   return dur(end - run.started);
 }
-function drawPill() {
-  if (!pill) return;
-  const run = last;
-  if (!run || run.status !== 'running') { pill.hidden = true; return; }
-  const s = run.steps.findLast(s => s.status === 'running') || {};
-  const thinking = s.outChars && !s.text?.length ? 'Thinking' : s.outChars ? 'Writing' : 'Starting';
-  pill.hidden = false;
-  setHtml(pill, `<span class="ag-pill-mark">${icon('ai')}</span><b>${esc(s.title || run.title)}</b><small>${thinking} · ${elapsed(run)} · ~$${liveCost(run).toFixed(3)}</small>`);
-}
 function spark(scores) {
   if (scores.length < 2) return '';
   const min = Math.min(...scores) - 2, max = Math.max(...scores, min + 5), w = 120, h = 28;
@@ -85,19 +72,19 @@ function spark(scores) {
 }
 function mount(run) {
   mountedRun = run.id; steps.clear(); root.scrollTop = 0;
-  root.innerHTML = `<section class="ag-head ag-overview"><div class="ag-overview-top"><h3>Overview</h3><span class="ag-run-status"></span></div><div class="ag-run-heading"><div><b class="ag-run-title"></b><span class="ag-current"></span></div></div><dl class="ag-metrics"><div><dt>Time</dt><dd class="ag-time"></dd></div><div><dt>Cost</dt><dd class="ag-cost"></dd></div><div class="ag-score-metric" hidden><dt>Similarity</dt><dd class="ag-score"></dd></div></dl><div class="ag-chart" hidden></div><button type="button" class="btn ag-stop" data-stop>${svg('<rect x="7" y="7" width="10" height="10" rx="2"/>')}Stop</button><p class="err ag-error" hidden></p></section><section class="ag-activity"><button type="button" class="ag-section-toggle" data-activity aria-expanded="true">${svg('<path d="M4 12h4l3-7 4 14 3-7h2"/>')}<span>Activity</span><small class="ag-count"></small>${chevron}</button><div class="ag-steps" role="list"></div></section><section class="ag-finish" hidden></section>`;
+  root.innerHTML = toolbar() + `<details class="ag-head ag-overview"><summary class="ag-run-heading"><b class="ag-run-title"></b><span class="ag-run-status"></span></summary><span class="ag-current"></span><dl class="ag-metrics"><div><dt>Time</dt><dd class="ag-time"></dd></div><div><dt>Cost</dt><dd class="ag-cost"></dd></div><div class="ag-score-metric" hidden><dt>Similarity</dt><dd class="ag-score"></dd></div></dl><div class="ag-chart" hidden></div></details><button type="button" class="btn ag-stop" data-stop>${svg('<rect x="7" y="7" width="10" height="10" rx="2"/>')}Stop</button><p class="err ag-error" hidden></p><section class="ag-activity"><button type="button" class="ag-section-toggle" data-activity aria-expanded="true">${svg('<path d="M4 12h4l3-7 4 14 3-7h2"/>')}<span>Activity</span><small class="ag-count"></small>${chevron}</button><div class="ag-steps" role="list"></div></section><section class="ag-finish" hidden></section>`;
 }
 function createStep(s) {
   const a = AGENTS[s.agent] || AGENTS.critic, el = document.createElement('article');
   el.className = 'ag-step'; el.setAttribute('role', 'listitem');
-  el.innerHTML = `<button type="button" class="ag-row" data-step-toggle="${esc(s.id)}" aria-expanded="true">${avatar(a)}<span class="ag-t"><b class="ag-step-title"></b><small class="ag-step-meta"></small></span><span class="ag-step-state"></span>${chevron}</button><div class="ag-detail"><p class="ag-sum" hidden></p><div class="ag-pal" hidden></div><ul class="ag-log" hidden></ul><div class="ag-imgs" hidden></div><small class="ag-usage" hidden></small><div class="ag-reason" hidden><button type="button" class="ag-more" data-toggle="${esc(s.id)}" aria-expanded="true"><span>Hide reasoning</span>${chevron}</button><div class="ag-reasoning"><div class="ag-think"></div><div class="ag-out" hidden></div></div></div></div>`;
+  el.innerHTML = `<button type="button" class="ag-row" data-step-toggle="${esc(s.id)}" aria-expanded="true">${avatar(a)}<span class="ag-t"><b>${a.name}</b><small class="ag-step-meta"></small></span><span class="ag-step-state"></span>${chevron}</button><div class="ag-detail"><p class="ag-step-title"></p><p class="ag-sum" hidden></p><div class="ag-pal" hidden></div><ul class="ag-log" hidden></ul><div class="ag-imgs" hidden></div><small class="ag-usage" hidden></small><div class="ag-reason" hidden><button type="button" class="ag-more" data-toggle="${esc(s.id)}" aria-expanded="false"><span>Show reasoning</span>${chevron}</button><div class="ag-reasoning" hidden><div class="ag-think"></div><div class="ag-out" hidden></div></div></div></div>`;
   root.querySelector('.ag-steps').appendChild(el); steps.set(s.id, el); return el;
 }
 function drawStep(s) {
   const el = steps.get(s.id) || createStep(s), a = AGENTS[s.agent] || AGENTS.critic, q = selector => el.querySelector(selector);
   el.className = `ag-step ${s.status}`;
   setText(q('.ag-step-title'), s.title);
-  const details = [a.name];
+  const details = [];
   if (s.ended || s.status === 'running') details.push(dur((s.ended || Date.now()) - s.started));
   if (s.cost) details.push('$' + s.cost.toFixed(3));
   setText(q('.ag-step-meta'), details.join(' · '));
@@ -111,7 +98,7 @@ function drawStep(s) {
   setHtml(images, (s.images || []).map(i => `<figure><img src="${esc(i.src)}" alt="${esc(i.label)}" data-full loading="lazy"><figcaption>${esc(i.label)}</figcaption></figure>`).join(''));
   const reason = q('.ag-reason'); reason.hidden = !(s.thinking || s.text);
   if (!el.reasoningTouched) {
-    const expanded = s.status === 'running';
+    const expanded = false;
     q('.ag-reasoning').hidden = !expanded; q('.ag-more').setAttribute('aria-expanded', expanded);
     setText(q('.ag-more span'), expanded ? 'Hide reasoning' : 'Show reasoning');
   }
@@ -124,7 +111,6 @@ function drawStep(s) {
   q('.ag-usage').hidden = !usage; setText(q('.ag-usage'), usage);
 }
 function draw() {
-  drawPill();
   if (!root || !last) return;
   if (mountedRun === last.id && hasSelection()) { deferred = true; return; }
   deferred = false;

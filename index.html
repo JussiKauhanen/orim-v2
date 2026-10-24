@@ -71,10 +71,8 @@
   <aside id="palette" class="palette"></aside>
   <main id="stage" class="stage"></main>
   <aside id="side" class="side" aria-label="Diagram workspace" aria-hidden="true">
-    <div class="side-heading"><div class="tabs" role="tablist" aria-label="Canvas panels"><button id="aiTab" data-side="ai" role="tab" aria-controls="aiWorkspace" aria-selected="false" tabindex="-1"><span data-icon="ai"></span>AI</button><button id="agentsTab" data-side="agents" role="tab" aria-controls="agents" aria-selected="false" tabindex="-1">Agents</button><button id="propertiesTab" data-side="inspect" class="on" role="tab" aria-controls="inspector" aria-selected="true">Properties</button></div><button id="sideClose" class="ib" title="Collapse right panel" aria-label="Collapse right panel" data-icon="close"></button></div>
-    <section id="aiWorkspace" role="tabpanel" aria-labelledby="aiTab" hidden></section>
-    <div id="agents" class="agents" role="tabpanel" aria-labelledby="agentsTab" hidden></div>
-    <div id="inspector" class="inspector" role="tabpanel" aria-labelledby="propertiesTab"></div>
+    <div class="side-heading"><b id="propertiesTitle">Properties</b><button id="sideClose" class="ib" title="Collapse properties" aria-label="Collapse properties" data-icon="close"></button></div>
+    <div id="inspector" class="inspector" aria-labelledby="propertiesTitle"></div>
   </aside>
 </div>
 

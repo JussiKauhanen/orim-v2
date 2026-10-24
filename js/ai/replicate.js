@@ -5,13 +5,14 @@
 import { complete, extractJson, partialArray, partialObject, settings, AIError } from './llm.js';
 import { withCatalog, ANALYST_SYSTEM, analystUser, DESIGNER_SYSTEM, designerUser, CRITIC_SYSTEM, criticUser, EDIT_SYSTEM } from './prompts.js';
 import { loadImage, canvasOf, pixels, modelSize, encode, palette, regions, sampleBox, snapBox, compare, cropCanvas, strip } from './vision.js';
-import { renderToCanvas } from './raster.js';
+import { renderToCanvas, canvasWithHighlights } from './raster.js';
 import { catalog, getKind, validateKind, allKinds } from '../kinds.js';
 import { relevantLessons, addLessons, saveLearnedKind } from '../library.js';
 import { state, emit, normalize, stripClasses, uid, clone, scheduleSave, saveNow, beginChange, endChange } from '../store.js';
 import { ensureFont } from '../text.js';
 import { dist, parse as parseColor } from '../color.js';
 import { indexDoc } from '../render.js';
+import { bounds } from '../geom.js';
 
 const listeners = new Set();
 export const onRun = fn => listeners.add(fn);
@@ -170,6 +171,8 @@ function livePreview(doc, buf, shown, s) {
     indexDoc(doc);
     for (const el of doc.elements) if (el.kind === 'connector') el.hidden = !!((el.from.id && !doc.byId.has(el.from.id)) || (el.to.id && !doc.byId.has(el.to.id)));
     s.log[0] = `${els.length} elements so far…`;
+    const target = doc.elements.findLast(e => e.kind !== 'connector');
+    if (target) { s.focus = bounds(target, doc); s.targets = [target.id]; }
     emit();
   }
   return els.length;
@@ -220,6 +223,7 @@ async function designKind(run, spec, doc, full, s) {
   const st = step(run, 'designer', `Shape designer: ${spec.name || spec.id}`);
   const example = doc.elements.find(e => e.id === spec.example) || doc.elements.find(e => e.kind === spec.id);
   if (!example) { log(st, 'No element uses it; skipped.'); done(st, 'skipped'); return; }
+  st.focus = bounds(example, doc); st.targets = [example.id];
   const pad = 6;
   const box = { x: example.x / s, y: example.y / s, w: example.w / s, h: example.h / s };
   const scale = Math.min(4, Math.max(1, 220 / Math.max(box.w, box.h)), 600 / Math.max(box.w, box.h));
@@ -311,7 +315,7 @@ async function refineLoop(run, doc, view, enc, iterations, instructions) {
   first.images.push({ label: 'render', src: rc.toDataURL() }, { label: 'difference', src: cmp.heat });
   done(first);
   for (let round = 1; round <= iterations; round++) {
-    const st = step(run, 'critic', `Critic round ${round}`);
+    const st = step(run, 'critic', `Critic round ${round}`, { focus: cmp.cells[0] || { x: 0, y: 0, w: doc.page.w, h: doc.page.h } });
     const heat = await loadImage(cmp.heat);
     const hs = Math.min(1, 480 / Math.max(view.width, view.height));
     const content = [
@@ -389,9 +393,18 @@ async function fillCrops(doc) {
 // Run a critic/editor request and apply its ops to the doc as they stream in.
 async function streamOps(run, st, doc, { role = 'critic', system, content }) {
   let buf = '', applied = 0, n = 0, last = 0;
+  const apply = ops => {
+    const ids = ops.map(op => op.id || op.element?.id).filter(Boolean);
+    const previous = ids.map(id => doc.byId.get(id)).filter(Boolean).map(e => bounds(e, doc));
+    const count = applyOps(doc, ops);
+    st.targets = ids.filter(id => doc.byId.has(id)).slice(-4);
+    const changed = st.targets.map(id => bounds(doc.byId.get(id), doc));
+    if (changed.length || previous.length) st.focus = (changed.length ? changed : previous).at(-1);
+    update(); return count;
+  };
   const flush = () => {
     const ops = partialArray(buf, 'ops');
-    if (ops.length > applied) { if (!applied) { run.opsStarted = true; clearGhosts(doc); } n += applyOps(doc, ops.slice(applied)); applied = ops.length; emit(); }
+    if (ops.length > applied) { if (!applied) { run.opsStarted = true; clearGhosts(doc); } n += apply(ops.slice(applied)); applied = ops.length; emit(); }
   };
   const res = await complete({ role, system, content, signal: run.ctl.signal, maxTokens: 64000,
     ...meter(st, role, t => { buf += t; st.text += t; const now = performance.now(); if (now - last > 150) { last = now; flush(); } }) });
@@ -400,7 +413,7 @@ async function streamOps(run, st, doc, { role = 'critic', system, content }) {
   let out = null; try { out = extractJson(res.text); } catch (_) { out = applied ? { ops: [] } : null; }
   if (out) {
     st.summary = out.assessment || '';
-    if ((out.ops || []).length > applied) { n += applyOps(doc, out.ops.slice(applied)); emit(); }
+    if ((out.ops || []).length > applied) { n += apply(out.ops.slice(applied)); emit(); }
   }
   await Promise.all(doc.elements.filter(e => e.text?.font).map(e => ensureFont(e.text.font)));
   return { out, n };
@@ -408,9 +421,10 @@ async function streamOps(run, st, doc, { role = 'critic', system, content }) {
 
 // ---------- refine against the source, or edit by instruction ----------
 // Both are one undo step; an instruction edit is applied as asked (it is not scored against the source).
-export async function refine({ rounds = 1, instructions = '', style = '' } = {}) {
+export async function refine({ rounds = 1, instructions = '', style = '', highlights = [] } = {}) {
   const doc = state.doc;
   const run = newRun('refine', instructions ? 'Edit with AI' : 'Refine against the original');
+  run.highlights = highlights;
   beginChange();
   try {
     if (!instructions && doc.source) {
@@ -420,15 +434,22 @@ export async function refine({ rounds = 1, instructions = '', style = '' } = {})
       run.finish = { title: 'Refine finished', text: `Similarity ${run.first} → ${run.final}. ${run.stopReason || ''}`, undo: true, refine: true };
     } else {
       const st = step(run, 'editor', 'Editing: ' + instructions.slice(0, 60));
+      if (highlights.length) {
+        const points = highlights.flatMap(s => s.points), xs = points.map(p => p[0]), ys = points.map(p => p[1]);
+        st.focus = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
+      }
       const before = await renderToCanvas(doc);
       st.images.push({ label: 'before', src: before.toDataURL() });
+      const marked = highlights.length ? canvasWithHighlights(before, highlights).toDataURL('image/png') : null;
+      if (marked) st.images.push({ label: 'Your highlighted areas', src: marked });
       const real = doc.elements.filter(e => !e.ghost).length;
       // Building on a near-empty page: a fast model sketches the layout in a few seconds while
       // the main model is still thinking; its boxes are replaced as soon as real edits arrive.
       let sketching = null;
       if (real < 3) sketching = quickSketch(run, doc, instructions).catch(() => {});
-      const text = `Request: ${instructions}\n${style ? `\nStyle reference (match this look: palette, fonts, shapes, line style):\n${style}\n` : ''}\nPage: ${doc.page.w} × ${doc.page.h} px.\nCurrent scene:\n${compactScene(doc)}`;
-      const { out, n } = await streamOps(run, st, doc, { role: 'editor', system: withCatalog(EDIT_SYSTEM, catalog()), content: [...(real ? [{ type: 'image', mime: 'image/png', data: before.toDataURL('image/png').split(',')[1] }] : []), { type: 'text', text }] });
+      const attention = marked ? '\nThe first image is the clean diagram. The second is the same diagram with translucent yellow highlighter strokes drawn by the user to indicate the areas they want changed. Focus the request on those areas unless instructed otherwise. The highlights are request annotations, not diagram content: never add them to the result. Image coordinates match the page.\n' : '';
+      const text = `Request: ${instructions}\n${attention}${style ? `\nStyle reference (match this look: palette, fonts, shapes, line style):\n${style}\n` : ''}\nPage: ${doc.page.w} × ${doc.page.h} px.\nCurrent scene:\n${compactScene(doc)}`;
+      const { out, n } = await streamOps(run, st, doc, { role: 'editor', system: withCatalog(EDIT_SYSTEM, catalog()), content: [...(real || marked ? [{ type: 'image', mime: 'image/png', data: before.toDataURL('image/png').split(',')[1] }] : []), ...(marked ? [{ type: 'image', mime: 'image/png', data: marked.split(',')[1] }] : []), { type: 'text', text }] });
       run.sketchDone = true; await sketching; clearGhosts(doc);
       if (!out) throw new AIError('bad_reply', 'The reply could not be read; nothing was changed.');
       st.images.push({ label: 'after', src: (await renderToCanvas(doc)).toDataURL() });
