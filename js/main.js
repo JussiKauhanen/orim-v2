@@ -212,7 +212,7 @@ async function boot() {
   aiChat = initAIChat($('#stage'), {
     highlighter, onOpen: openAI, onClose: () => { setAIExpanded(false); $('#aiLauncher').focus(); },
     templates: () => lib.templates,
-    onSettings: openSettings, onAgents: () => agentsUI.show(),
+    onSettings: openSettings, onAgents: () => { if (!agentsUI.show()) { openAI(); aiChat.openHistory(); } },
     onAttach: chooseReplicationImage,
     onRefine: () => { if (!hasKey()) return openSettings(); openAI(); refine({ rounds: 1 }); },
     onSend: (instructions, templateId) => {
@@ -227,7 +227,6 @@ async function boot() {
   const popups = document.createElement('section'); popups.id = 'agents'; popups.className = 'agent-popups'; popups.hidden = true; popups.setAttribute('aria-label', 'Agent activity'); $('#stage').appendChild(popups);
   agentsUI = initAgents(popups, {
     onImage: (src, label) => { $('#imgDlgImg').src = src; $('#imgDlgCap').textContent = label; $('#imgDlg').showModal(); },
-    onAction: act => { if (act === 'undo') undo(); else if (act === 'ask') openAI(); else if (act === 'refine') $('#refineBtn').click(); },
   });
   await initLibrary();
   initPalette($('#palette'));
@@ -242,8 +241,6 @@ async function boot() {
     if (run.status === 'running' && !run.collapsedPanel) { run.collapsedPanel = true; setPaletteCollapsed(true, { auto: true }); }
     updateWelcome();
     updateTop();
-    if (run.status === 'running') return;
-    if (!run.announced) { run.announced = true; toast(run.status === 'done' ? `${run.finish?.title || 'Done'}${run.final != null ? ` — similarity ${run.final}/100` : ''}` : run.status === 'stopped' ? 'Stopped' : 'Stopped with an error — see Agent activity', 4000); }
   });
 
   // home events

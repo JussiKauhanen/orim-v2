@@ -23,7 +23,7 @@ const update = () => { cancelAnimationFrame(tick); tick = requestAnimationFrame(
 const runs = new Map(); // docId -> latest run, so each diagram shows its own agent history
 export const runFor = docId => runs.get(docId) || null;
 function newRun(kind, title) {
-  current = { id: uid('r'), docId: state.doc?.id, kind, title, status: 'running', steps: [], scores: [], cost: 0, started: Date.now(), ctl: new AbortController() };
+  current = { id: uid('r'), docId: state.doc?.id, provider: settings().provider, kind, title, status: 'running', steps: [], scores: [], cost: 0, started: Date.now(), ctl: new AbortController() };
   runs.set(current.docId, current);
   update(); return current;
 }
@@ -152,7 +152,7 @@ export async function replicate({ src, instructions = '', diagramOnly = false, i
 
 function fail(run, e) {
   console.error(e);
-  run.status = e.code === 'aborted' ? 'stopped' : 'error'; run.error = e.message || String(e);
+  run.status = e.code === 'aborted' ? 'stopped' : 'error'; run.error = e.message || String(e); run.errorCode = e.code;
   for (const s of run.steps) if (s.status === 'running') done(s, run.status === 'stopped' ? 'stopped' : 'error');
   update(); scheduleSave();
 }

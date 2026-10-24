@@ -1,4 +1,4 @@
-// A small, persistent overview. Its frame stays fixed during a navigation drag.
+// A navigation overview, visible briefly when some of the diagram is off-screen.
 import { state, onChange } from './store.js';
 import { bounds, unionBounds, connectorPoints } from './geom.js';
 import { displayDoc } from './theme.js';
@@ -10,7 +10,8 @@ export function initMinimap(stage, { cam, view, applyCamera, onViewChanged, befo
   panel.innerHTML = `<button class="minimap-toggle" type="button" aria-controls="minimapCanvas" aria-expanded="true">${icon('map')}<span>Overview</span>${icon('collapse', 'minimap-chevron')}</button><canvas id="minimapCanvas" width="${W}" height="${H}" tabindex="0" role="img" aria-label="Diagram overview. Click or drag to navigate; use arrow keys to pan."></canvas>`;
   stage.appendChild(panel);
   const canvas = panel.querySelector('canvas'), toggle = panel.querySelector('button');
-  let frame = 0, map = null, dragging = false;
+  let frame = 0, map = null, dragging = false, idleTimer = 0, activeUntil = 0;
+  let lastCamera = [cam.x, cam.y, cam.z], docId;
   let collapsed = false;
   try { collapsed = localStorage.getItem('orim.minimapHidden') === 'true'; } catch (_) {}
 
@@ -23,13 +24,24 @@ export function initMinimap(stage, { cam, view, applyCamera, onViewChanged, befo
     schedule();
   }
   function schedule() { if (!frame) frame = requestAnimationFrame(draw); }
+  function activity() {
+    activeUntil = Date.now() + 1500;
+    clearTimeout(idleTimer); idleTimer = setTimeout(schedule, 1500);
+    schedule();
+  }
   function draw() {
     frame = 0;
-    if (!state.doc || collapsed || !stage.getBoundingClientRect().width) return;
+    if (!state.doc || !stage.getBoundingClientRect().width) { panel.hidden = true; return; }
     const doc = displayDoc(state.doc, view.mode === 'diagram'), r = stage.getBoundingClientRect();
     const viewport = { x: cam.x, y: cam.y, w: r.width / cam.z, h: r.height / cam.z };
     const visible = doc.elements.filter(e => !e.hidden);
-    const all = unionBounds([{ x: 0, y: 0, w: doc.page.w, h: doc.page.h }, viewport, ...visible.map(e => bounds(e, doc))]);
+    const content = unionBounds([{ x: 0, y: 0, w: doc.page.w, h: doc.page.h }, ...visible.map(e => bounds(e, doc))]);
+    const tolerance = 2 / cam.z;
+    const fits = content.x >= viewport.x - tolerance && content.y >= viewport.y - tolerance &&
+      content.x + content.w <= viewport.x + viewport.w + tolerance && content.y + content.h <= viewport.y + viewport.h + tolerance;
+    panel.hidden = !dragging && (fits || (Date.now() >= activeUntil && !panel.matches(':hover, :focus-within')));
+    if (panel.hidden || collapsed) return;
+    const all = unionBounds([content, viewport]);
     if (!dragging || !map) {
       const pad = Math.max(20, Math.min(all.w, all.h) * 0.04);
       const s = Math.min((W - 12) / (all.w + pad * 2), (H - 12) / (all.h + pad * 2));
@@ -75,7 +87,7 @@ export function initMinimap(stage, { cam, view, applyCamera, onViewChanged, befo
     cam.x = x - r.width / cam.z / 2; cam.y = y - r.height / cam.z / 2;
     applyCamera();
   }
-  function finish() { dragging = false; schedule(); }
+  function finish() { dragging = false; activity(); }
   canvas.addEventListener('pointerdown', e => {
     if (e.button !== 0 || !map) return;
     e.preventDefault(); beforeNavigate(); canvas.focus({ preventScroll: true });
@@ -91,7 +103,18 @@ export function initMinimap(stage, { cam, view, applyCamera, onViewChanged, befo
     cam.x += dx * step; cam.y += dy * step; applyCamera();
   });
   toggle.addEventListener('click', () => setCollapsed(!collapsed));
-  onChange(schedule); onViewChanged(schedule); window.addEventListener('themechange', schedule);
+  panel.addEventListener('pointerleave', activity);
+  panel.addEventListener('focusout', activity);
+  onChange(() => {
+    if (docId !== state.doc?.id) { docId = state.doc?.id; activeUntil = 0; map = null; }
+    schedule();
+  });
+  onViewChanged(() => {
+    const camera = [cam.x, cam.y, cam.z];
+    if (camera.some((value, i) => value !== lastCamera[i])) activity();
+    lastCamera = camera; schedule();
+  });
+  window.addEventListener('themechange', schedule);
   new ResizeObserver(schedule).observe(stage);
   setCollapsed(collapsed);
 }

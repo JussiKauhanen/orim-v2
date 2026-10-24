@@ -249,6 +249,26 @@ test('HTTP auth, permission, rate and request errors have consistent codes', asy
   }
 });
 
+test('OpenAI billing failures stay distinct from temporary rate limits in HTTP and streams', async () => {
+  use('openai');
+  const cases = [
+    [{ code: 'credit_balance_exhausted', message: 'No credits remaining' }, 'credits'],
+    [{ code: 'insufficient_quota', message: 'Check your plan and billing details' }, 'quota'],
+    [{ code: 'project_spend_limit_exceeded', message: 'Project limit reached' }, 'quota'],
+    [{ code: 'organization_usage_limit_exceeded', message: 'Usage limit reached' }, 'quota'],
+    [{ type: 'insufficient_quota', message: 'You have no credits remaining. Add credits to continue.' }, 'credits'],
+    [{ code: 'rate_limit_exceeded', message: 'Slow down' }, 'rate'],
+  ];
+  for (const [error, expected] of cases) {
+    globalThis.fetch = async () => new Response(JSON.stringify({ error }), { status: 429 });
+    await assert.rejects(complete(input), code(expected));
+    for (const event of [{ type: 'error', error }, { type: 'response.failed', response: { error } }]) {
+      globalThis.fetch = async () => sse([event]);
+      await assert.rejects(complete(input), code(expected));
+    }
+  }
+});
+
 test('streamed failures and refusals stop both providers', async () => {
   use('openai');
   for (const event of [{ type: 'error', code: 'rate_limit_exceeded', message: 'Slow down' }, { type: 'response.failed', response: { error: { message: 'Unavailable' } } }, { type: 'response.refusal.delta', delta: 'Declined' }]) {

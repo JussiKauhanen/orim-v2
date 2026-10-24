@@ -161,7 +161,7 @@ async function* streamJson(url, headers, body, signal) {
   const response = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body: JSON.stringify(body), signal });
   if (!response.ok) {
     const error = await response.json().catch(() => ({}));
-    throw apiError(response.status, error.error || error);
+    throw apiError(response.status, error.error || error, url.startsWith('https://api.openai.com/') ? 'openai' : null);
   }
   if (!response.body) throw new AIError('network', 'The API returned no response stream.');
   const reader = response.body.getReader(), decoder = new TextDecoder();
@@ -186,10 +186,14 @@ async function* streamJson(url, headers, body, signal) {
   } finally { await reader.cancel().catch(() => {}); reader.releaseLock(); }
 }
 
-function apiError(status, error = {}) {
+function apiError(status, error = {}, provider) {
   const message = error.message || 'The API request failed.';
   if (status === 401 || /invalid[_ ]api[_ ]key|api key not valid/i.test(`${error.code || ''} ${message}`)) return new AIError('auth', 'The API key was rejected. Check it in Settings.');
   if (status === 403) return new AIError('permission', 'This key does not have access to the selected model.');
+  if (provider === 'openai') {
+    if (error.code === 'credit_balance_exhausted' || /no credits remaining|insufficient credits|credit balance (?:is )?(?:exhausted|depleted)/i.test(message)) return new AIError('credits', 'OpenAI reports no API credits remaining. Add credits in API billing for the organization that owns this key.');
+    if (/insufficient_quota|(?:spend|usage)_limit_exceeded/.test(`${error.code || ''} ${error.type || ''}`)) return new AIError('quota', 'OpenAI reports an API billing or usage limit. Check the credit balance and limits for the organization and project that own this key.');
+  }
   if (status === 429 || error.code === 'rate_limit_exceeded') return new AIError('rate', 'Rate limited by the API. Try again in a minute.');
   if (status === 400 || status === 404) return new AIError('bad_request', 'The API rejected the request: ' + message);
   return new AIError('api', message);
@@ -212,7 +216,7 @@ async function openAI({ key, model, system, content, maxTokens, signal, onText, 
     if (event.type === 'response.output_text.delta') { text += event.delta; onText?.(event.delta); }
     else if (event.type === 'response.reasoning_summary_text.delta') onThinking?.(event.delta);
     else if (event.type === 'response.refusal.delta' || event.type === 'response.refusal.done') throw new AIError('refusal', 'The model declined this request.');
-    else if (event.type === 'error' || event.type === 'response.failed') throw apiError(0, event.error || event.response?.error || event);
+    else if (event.type === 'error' || event.type === 'response.failed') throw apiError(0, event.error || event.response?.error || event, 'openai');
     else if (event.type === 'response.completed' || event.type === 'response.incomplete') final = event.response;
   }
   if (!final) throw new AIError('network', 'The API stream ended before the response finished.');

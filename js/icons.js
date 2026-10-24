@@ -7,7 +7,7 @@ const paths = {
   note: '<path d="M5 3h14a2 2 0 0 1 2 2v10l-6 6H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M15 21v-6h6"/>',
   image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8" cy="9" r="1.5"/><path d="m3 17 5-5 4 4 4-5 5 6"/>',
   draw: '<path d="m15 4 5 5M4 20l5-1L20 8a2 2 0 0 0-5-5L4 14Z"/><path d="m4 14 5 5"/>',
-  highlighter: '<path d="m10 4 9 9-5 5-9-9Z"/><path d="m5 9-2 6 6-2M3 21h18"/><path d="M3 21h18" stroke="#e5ba15" stroke-width="4"/>',
+  highlighter: '<path d="m15 3 6 6-9 9-6-6Z"/><path d="m6 12-3 3v4h4l3-3M12 6l6 6M3 22h10"/>',
   templates: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
   expand: '<path d="M9 4H4v5M15 20h5v-5M4 4l6 6m10 10-6-6"/>',
   collapse: '<path d="m8 5 7 7-7 7"/><path d="M20 4v16"/>',

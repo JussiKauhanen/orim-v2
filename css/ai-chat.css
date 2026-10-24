@@ -11,7 +11,7 @@
 .ai-suggestions .suggestion-2 svg { color: #21a788; }
 .ai-suggestions .suggestion-3 svg { color: #ef7958; }
 .ai-suggestions .suggestion-image svg { color: #d3a315; }
-.ai-compose-wrap { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 40px)); max-height: calc(100% - 36px); overflow: visible; z-index: 7; padding: 12px 16px 13px; border: 1px solid var(--line2); border-radius: 22px; background: var(--panel); box-shadow: 0 8px 32px #00000018, 0 2px 7px #00000008; }
+.ai-compose-wrap { position: absolute; bottom: 18px; right: 16px; width: min(560px, calc(100% - 40px)); max-height: calc(100% - 36px); overflow: visible; z-index: 7; padding: 12px 16px 13px; border: 1px solid var(--line2); border-radius: 22px; background: var(--panel); box-shadow: 0 8px 32px #00000018, 0 2px 7px #00000008; }
 .ai-compose-wrap:focus-within { border-color: var(--accent); }
 .ai-dock-heading { display: flex; align-items: center; gap: 10px; margin: 0 0 10px; }
 .ai-dock-heading button { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 2px 0; font-size: 11px; }
@@ -24,7 +24,6 @@
 .ai-dock-heading button:hover { color: var(--text); }
 #aiDockStatus { display: block; width: 100%; text-align: left; color: var(--muted); border: 0; background: var(--field); border-radius: 7px; margin-bottom: 10px; padding: 7px 9px; cursor: pointer; overflow-wrap: anywhere; font-size: 11px; }
 #aiDockStatus.failed { color: var(--danger); }
-.ai-chat-open .minimap { bottom: 242px; right: 16px; }
 #app.ai-chat-open ~ #toast { bottom: 260px; max-width: calc(100vw - 40px); text-align: center; }
 .ai-context { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 4px 8px; }
 .ai-context:has(> [hidden]):not(:has(> :not([hidden]))) { display: none; }
@@ -62,7 +61,7 @@
 .ai-reply-actions button:hover { color: var(--text); }
 .ai-reply-actions svg { width: 12px; height: 12px; }
 .ai-working::before { content: ''; display: inline-block; width: 6px; height: 6px; margin-right: 7px; border-radius: 50%; background: #e8b91a; animation: pulse 1.5s infinite; }
-@media (max-width: 900px) { .ai-compose-wrap { position: fixed; bottom: 12px; width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 76px); z-index: 9; } .ai-chat-open .minimap { bottom: 242px; } }
+@media (max-width: 900px) { .ai-compose-wrap { position: fixed; bottom: 12px; right: 12px; width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 76px); z-index: 9; } }
 
 .ai-ideas { position: relative; }
 .ai-ideas > summary { display: flex; align-items: center; gap: 4px; padding: 4px 0; color: var(--muted); font-size: 11px; cursor: pointer; list-style: none; }
@@ -80,3 +79,7 @@
 .ai-mark-note button:disabled { opacity: .4; cursor: default; }
 :root[data-theme="dark"] .ai-mark-note { background: #403712; color: #ffe886; }
 .stage.highlighting #overlay .dot { display: none; }
+
+.ai-billing-help { font-size: 11px; line-height: 1.5; color: var(--muted); margin: 0 0 10px; }
+.ai-billing-help a { color: var(--accent); white-space: nowrap; }
+.ag-help .ai-billing-help { margin: 10px 0 0; }

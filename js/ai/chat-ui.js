@@ -3,7 +3,7 @@ import { state, onChange, undo } from '../store.js';
 import { onRun, runFor, current, stop } from './replicate.js';
 import { hasKey, settings, modelInfo } from './llm.js';
 import { icon } from '../icons.js';
-import { providerMark, providerNames } from './provider-ui.js';
+import { providerMark, providerNames, billingHelp } from './provider-ui.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const suggestions = [
@@ -23,6 +23,7 @@ export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine,
     <button type="button" class="ai-dock-close" data-ai-collapse aria-label="Collapse AI chat">${icon('close')}</button></div>
     <div id="aiConversation" class="ai-thread" aria-label="Conversation" hidden></div>
     <button type="button" id="aiDockStatus" data-agents hidden></button>
+    <div id="aiBillingHelp" hidden></div>
     <div class="ai-context"><button type="button" id="refineBtn" hidden>${icon('refine')}Refine from image</button><label id="askStyleWrap" hidden>Style<select id="askStyle" aria-label="Diagram style"><option value="">Let AI choose</option></select></label></div>
     <button type="button" class="ai-connect" hidden>Connect your AI to get started ${icon('chevron')}</button>
     <div class="ai-mark-note" hidden><span></span><button type="button" id="aiMarkUndo">Undo mark</button><button type="button" id="aiMarkClear">Clear</button></div>
@@ -53,6 +54,9 @@ export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine,
     $('.ai-model-label').textContent = modelInfo(config.roles.editor).name;
     const status = $('#aiDockStatus'); status.hidden = !run; status.classList.toggle('failed', run?.status === 'error');
     status.textContent = !run ? '' : (run.status === 'running' ? run.steps.findLast(s => s.status === 'running')?.title || 'Getting started…' : run.finish?.title || (run.status === 'error' ? 'Could not finish' : 'Stopped')) + ' · Agent activity';
+    const help = billingHelp(run), billing = $('#aiBillingHelp');
+    billing.hidden = !help;
+    if (billing.innerHTML !== help) billing.innerHTML = help;
     const blank = !state.doc.elements.length && !state.doc.source;
     input.placeholder = blank ? 'Where shall we start?' : 'What should change?';
     $('#askGo').disabled = busy || !input.value.trim(); $('#askGo').hidden = busy; $('#aiStop').hidden = !busy;
@@ -69,7 +73,7 @@ export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine,
       const working = r.status === 'running', failed = r.status === 'error';
       const title = working ? r.steps.findLast(s => s.status === 'running')?.title || 'Getting started…' : r.finish?.title || (failed ? 'Could not finish' : 'Stopped');
       const message = working ? 'You can keep working on the canvas.' : r.error || r.finish?.text || 'The changes made so far are on the canvas.';
-      return `<article class="ai-turn"><p class="ai-user-message">${esc(prompt)}</p><div class="ai-reply ${failed ? 'failed' : ''}"><b class="${working ? 'ai-working' : ''}">${esc(title)}</b><p>${esc(message)}</p><div class="ai-reply-actions"><button type="button" data-agents>Agent activity ${icon('chevron')}</button>${r.finish?.undo && r.id === run?.id ? '<button type="button" data-undo>Undo</button>' : ''}</div></div></article>`;
+      return `<article class="ai-turn"><p class="ai-user-message">${esc(prompt)}</p><div class="ai-reply ${failed ? 'failed' : ''}"><b class="${working ? 'ai-working' : ''}">${esc(title)}</b><p>${esc(message)}</p>${billingHelp(r)}<div class="ai-reply-actions"><button type="button" data-agents>Agent activity ${icon('chevron')}</button>${r.finish?.undo && r.id === run?.id ? '<button type="button" data-undo>Undo</button>' : ''}</div></div></article>`;
     }).join('');
     if (html !== lastLog) { const follow = log.scrollHeight - log.scrollTop - log.clientHeight < 64; log.innerHTML = html; lastLog = html; if (follow) log.scrollTop = log.scrollHeight; }
   }
@@ -109,5 +113,5 @@ export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine,
     input.value = ''; $('#askStyle').value = ''; remember(); refresh(); input.focus();
   });
   onChange(refresh); onRun(refresh);
-  return { refresh, focus() { refresh(); input.focus(); }, setExpanded(value) { dock.hidden = !value; if (!value) ideas.open = false; } };
+  return { refresh, focus() { refresh(); input.focus(); }, openHistory() { showHistory = true; refresh(); }, setExpanded(value) { dock.hidden = !value; if (!value) ideas.open = false; } };
 }

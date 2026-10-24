@@ -1,4 +1,4 @@
-.minimap { position: absolute; right: 80px; bottom: 12px; z-index: 3; width: 182px; max-width: calc(100% - 104px); overflow: hidden; background: var(--panel); border: 1px solid var(--line2); border-radius: 9px; box-shadow: 0 3px 14px rgba(0,0,0,.12); }
+.minimap { position: absolute; right: 80px; bottom: 12px; z-index: 10; width: 182px; max-width: calc(100% - 104px); overflow: hidden; background: var(--panel); border: 1px solid var(--line2); border-radius: 9px; box-shadow: 0 3px 14px rgba(0,0,0,.12); }
 .minimap-toggle { display: flex; align-items: center; gap: 6px; width: 100%; min-height: 29px; padding: 5px 8px; border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; text-align: left; }
 .minimap-toggle:hover { background: var(--hover); color: var(--text); }
 .minimap-toggle svg { width: 14px; height: 14px; flex: none; }
