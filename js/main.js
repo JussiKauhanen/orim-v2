@@ -297,6 +297,10 @@ async function boot() {
   document.addEventListener('click', e => { if (!e.target.closest('#exportMenu')) $('#exportMenu').hidden = true; });
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#libraryBtn').addEventListener('click', openLibrary);
+  const closeBoardOptions = () => { $('#boardUtilities').classList.remove('open'); $('#boardMore').setAttribute('aria-expanded', 'false'); };
+  $('#boardMore').addEventListener('click', () => { const open = $('#boardUtilities').classList.toggle('open'); $('#boardMore').setAttribute('aria-expanded', String(open)); });
+  document.addEventListener('pointerdown', e => { if (!e.target.closest('#boardUtilities, #boardMore')) closeBoardOptions(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeBoardOptions(); });
   $('#sideToggle').addEventListener('click', () => setSideCollapsed(!sideCollapsed));
   $('#sideClose').addEventListener('click', () => setSideCollapsed(true));
 

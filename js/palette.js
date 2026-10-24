@@ -3,10 +3,11 @@
 import { allKinds, onKindsChanged, getKind } from './kinds.js';
 import { elementSvg } from './render.js';
 import { makeElement } from './store.js';
-import { addKindAt, dropKind, setPlacing, setTool, view, onViewChanged } from './editor.js';
+import { addKindAt, dropKind, setPlacing, setTool, setLineTool, view, onViewChanged } from './editor.js';
 import { lib } from './library.js';
 import { icon } from './icons.js';
 import { displayElement } from './theme.js';
+import { lineButtons, LINE_TOOLS } from './quick-insert.js';
 
 const ORDER = ['learned', 'basic', 'flowchart', 'containers', 'wireframe', 'icons', 'decor'];
 let root, query = '';
@@ -66,6 +67,8 @@ export function initPalette(el) {
     if (e.target.closest('[data-expand]')) { setPaletteCollapsed(false); root.querySelector('#palSearch')?.focus(); return; }
     if (e.target.closest('[data-shapes]')) { setShapesOpen(root.querySelector('#palShapes').hidden); return; }
     if (e.target.closest('[data-shapes-close]')) { setShapesOpen(false); root.querySelector('[data-shapes]')?.focus(); return; }
+    const line = e.target.closest('[data-line]');
+    if (line) { const [, , route, end] = LINE_TOOLS.find(t => t[0] === line.dataset.line); setLineTool(route, end); setShapesOpen(false); return; }
     const tool = e.target.closest('[data-tool]'); if (tool) { setTool(tool.dataset.tool); setShapesOpen(false); return; }
     const b = e.target.closest('[data-k]'); if (b) { setPlacing(b.dataset.k); setShapesOpen(false); return; }
     if (e.target.closest('[data-img]')) import('./inspector.js').then(m => m.pickImage((src) => { const img = new Image(); img.onload = () => { const s = Math.min(1, 400 / Math.max(img.width, img.height)); addKindAt('image', null, null, { w: img.width * s, h: img.height * s, props: { src } }); setTool('select'); }; img.src = src; }));
@@ -105,7 +108,7 @@ const captioned = k => !!(k && (k.pack || k.category === 'icons'));
 
 function list() {
   if (!root) return;
-  root.querySelector('.pal-shape-grid').innerHTML = ['rect', 'ellipse', 'diamond', 'triangle', 'pill', 'hexagon'].filter(getKind).map(k => `<button type="button" data-k="${k}" title="${getKind(k).name}" aria-label="${getKind(k).name}">${kindPreview(k, 38)}</button>`).join('');
+  root.querySelector('.pal-shape-grid').innerHTML = ['rect', 'ellipse', 'diamond', 'triangle', 'pill', 'hexagon', 'subprocess', 'manual-input', 'delay', 'phone', 'desktop', 'ipad'].filter(getKind).map(k => `<button type="button" data-k="${k}" title="${getKind(k).name}" aria-label="${getKind(k).name}">${kindPreview(k, 38)}</button>`).join('') + '<div class="pal-lines">' + lineButtons() + '</div>';
   const groups = new Map();
   for (const k of allKinds()) {
     if (query && !(`${k.id} ${k.name} ${(k.tags || []).join(' ')} ${k.description || ''}`.toLowerCase().includes(query))) continue;

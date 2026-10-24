@@ -5,6 +5,11 @@
 export const SYSTEM_FONTS = ['Arial', 'Helvetica', 'Georgia', 'Times New Roman', 'Courier New', 'Verdana', 'Tahoma', 'Trebuchet MS', 'system-ui'];
 export const SUGGESTED_FONTS = ['Inter', 'Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins', 'Nunito', 'Nunito Sans', 'DM Sans', 'Manrope', 'Work Sans', 'Source Sans 3', 'IBM Plex Sans', 'Noto Sans', 'Rubik', 'Figtree', 'Plus Jakarta Sans', 'Space Grotesk', 'Outfit', 'Raleway', 'Oswald', 'Bebas Neue', 'Barlow Condensed', 'Fjalla One', 'Archivo Narrow', 'Merriweather', 'Playfair Display', 'Source Serif 4', 'Lora', 'Caveat', 'Patrick Hand', 'Kalam', 'Gochi Hand', 'Shadows Into Light', 'Permanent Marker', 'Fira Code', 'JetBrains Mono', 'Roboto Mono'];
 const FALLBACK = '"Segoe UI", system-ui, -apple-system, sans-serif';
+export const FONT_SIZES = [8, 10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48, 64, 72, 96, 144];
+export function sizeOptions(value, allowAuto = true) {
+  const sizes = [...new Set([...FONT_SIZES, ...(Number.isFinite(+value) && +value > 0 ? [+value] : [])])].sort((a, b) => a - b);
+  return (allowAuto ? '<option value="auto">Auto</option>' : '') + sizes.map(n => `<option value="${n}">${n}</option>`).join('');
+}
 
 const fontCss = new Map();      // family -> Promise<css text | null>
 const listeners = new Set();
@@ -147,9 +152,22 @@ export function layout(t, maxW) {
 
 const esc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
+// Keep the stored font size as the upper limit; Auto only changes the layout.
+// This same fit is used by the inline editor, SVG exports and AI rasterisation.
+export function fitText(t, box) {
+  if (!t.autoSize || !t.content) return t;
+  const pad = t.pad || 0, w = Math.max(1, box.w - pad * 2), h = Math.max(1, box.h - pad * 2);
+  let low = 6, high = Math.max(low, +t.size || 16);
+  const fits = size => { const l = layout({ ...t, size }, w); return l.width <= w + 0.5 && l.height <= h + 0.5; };
+  if (fits(high)) return { ...t, size: high };
+  for (let i = 0; i < 9; i++) { const mid = (low + high) / 2; if (fits(mid)) low = mid; else high = mid; }
+  return { ...t, size: Math.floor(low * 10) / 10 };
+}
+
 // Render text into box {x,y,w,h}. Returns an SVG string.
 export function textSvg(t, box) {
   if (!t || t.content == null || t.content === '') return '';
+  t = fitText(t, box);
   const pad = t.pad ?? 0;
   const bx = box.x + pad, by = box.y + pad, bw = Math.max(1, box.w - pad * 2), bh = box.h - pad * 2;
   const L = layout(t, bw);

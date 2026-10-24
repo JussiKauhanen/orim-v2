@@ -6,6 +6,7 @@ import { getKind } from './kinds.js';
 import { parse, hex } from './color.js';
 import { CAPS } from './render.js';
 import { icon } from './icons.js';
+import { sizeOptions } from './text.js';
 
 const paths = {
   fill: '<path d="m7 4 11 11-7 6L1 11 8 4m-3 11h12M19 11s3 4 3 6a3 3 0 0 1-6 0c0-2 3-6 3-6Z"/>',
@@ -44,14 +45,14 @@ export function initContextToolbar(stage, { onProperties } = {}) {
     const els = selected(), r = stage.getBoundingClientRect();
     if (!els.length || !r.width || view.locked || view.mode === 'source') { toolbar.hidden = true; closePopup(); return; }
     const fill = els.some(canFill), stroke = els.some(canStroke), text = els.some(canText);
-    const formatText = text && els.some(el => canText(el) && (el.kind === 'text' || el.text?.content));
+    const formatText = text;
     const lines = els.some(el => el.kind === 'connector');
     const next = JSON.stringify([els.map(el => el.id), fill, stroke, text, formatText, lines]);
     if (next !== signature) {
       closePopup(); signature = next;
       const colorButton = (key, label) => button('color-' + key, key, label, `class="ctx-color" data-color="${key}"`).replace('</button>', '<span class="ctx-swatch"></span></button>');
       const select = (key, label, options) => `<select data-field="${key}" aria-label="${label}" title="${label}"><option value="" disabled>${label}</option>${options.map(([v, name]) => `<option value="${v}">${name}</option>`).join('')}</select>`;
-      toolbar.innerHTML = `<div class="ctx-controls">${els.length > 1 ? `<span class="ctx-count">${els.length}</span>` : ''}${fill ? colorButton('fill', 'Fill color') : ''}${stroke ? colorButton('stroke', 'Stroke color') : ''}${formatText ? colorButton('textColor', 'Text color') + '<span class="ctx-separator"></span><input type="number" data-field="size" min="6" max="240" step="1" aria-label="Text size" title="Text size">' + button('bold', 'bold', 'Bold', 'aria-pressed="false"') + select('align', 'Text alignment', [['left', 'Left'], ['center', 'Center'], ['right', 'Right']]) : ''}${text && els.length === 1 ? button('edit', 'text', els[0].text?.content ? 'Edit text' : 'Add text') : ''}${lines ? '<span class="ctx-separator"></span>' + select('route', 'Line route', [['straight', 'Straight'], ['curved', 'Curved'], ['elbow', 'Elbow'], ['spline', 'Spline']]) + select('start', 'Start cap', CAPS.map(c => [c, c === 'none' ? 'Start: none' : 'Start: ' + c])) + select('end', 'End cap', CAPS.map(c => [c, c === 'none' ? 'End: none' : 'End: ' + c])) : ''}<span class="ctx-separator"></span>${button('duplicate', 'copy', 'Duplicate')}${button('layers', 'layers', 'Layers')}${button('delete', 'trash', 'Delete', 'class="ctx-delete"')}<span class="ctx-separator"></span>${button('properties', 'panel-open', 'Properties')}</div><div class="ctx-popup ctx-colors" hidden><div class="ctx-color-grid">${COLORS.map(c => `<button type="button" data-value="${c}" title="${c}" aria-label="${c}" style="background:${c}"></button>`).join('')}</div><div class="ctx-color-custom"><button type="button" data-value="none">No color</button><label>Custom<input type="color" aria-label="Custom color"></label></div></div><div class="ctx-popup ctx-layers" hidden>${button('front', 'front', 'Bring to front')}<span>Bring to front</span>${button('back', 'back', 'Send to back')}<span>Send to back</span></div>`;
+      toolbar.innerHTML = `<div class="ctx-controls">${els.length > 1 ? `<span class="ctx-count">${els.length}</span>` : ''}${fill ? colorButton('fill', 'Fill color') : ''}${stroke ? colorButton('stroke', 'Stroke color') : ''}${formatText ? colorButton('textColor', 'Text color') + '<span class="ctx-separator"></span><select data-field="size" aria-label="Font size" title="Font size"><option value="" disabled>Size</option>' + sizeOptions() + '</select>' + button('bold', 'bold', 'Bold', 'aria-pressed="false"') + select('align', 'Text alignment', [['left', 'Left'], ['center', 'Center'], ['right', 'Right']]) : ''}${text && els.length === 1 ? button('edit', 'text', els[0].text?.content ? 'Edit text' : 'Add text') : ''}${lines ? '<span class="ctx-separator"></span>' + select('route', 'Line route', [['straight', 'Straight'], ['curved', 'Curved'], ['elbow', 'Elbow'], ['spline', 'Spline']]) + select('start', 'Start cap', CAPS.map(c => [c, c === 'none' ? 'Start: none' : 'Start: ' + c])) + select('end', 'End cap', CAPS.map(c => [c, c === 'none' ? 'End: none' : 'End: ' + c])) : ''}<span class="ctx-separator"></span>${button('duplicate', 'copy', 'Duplicate')}${button('layers', 'layers', 'Layers')}${button('delete', 'trash', 'Delete', 'class="ctx-delete"')}<span class="ctx-separator"></span>${button('properties', 'panel-open', 'Properties')}</div><div class="ctx-popup ctx-colors" hidden><div class="ctx-color-grid">${COLORS.map(c => `<button type="button" data-value="${c}" title="${c}" aria-label="${c}" style="background:${c}"></button>`).join('')}</div><div class="ctx-color-custom"><button type="button" data-value="none">No color</button><label>Custom<input type="color" aria-label="Custom color"></label></div></div><div class="ctx-popup ctx-layers" hidden>${button('front', 'front', 'Bring to front')}<span>Bring to front</span>${button('back', 'back', 'Send to back')}<span>Send to back</span></div>`;
       // The row itself is clickable as well as the layer icon.
       toolbar.querySelectorAll('.ctx-layers span').forEach(label => { label.dataset.act = label.previousElementSibling.dataset.act; });
     }
@@ -66,6 +67,11 @@ export function initContextToolbar(stage, { onProperties } = {}) {
       if (document.activeElement === input) continue;
       const key = input.dataset.field;
       const v = ['size', 'align'].includes(key) ? common(textEls.map(el => valueOf(el, 'text', key))) : common(connectors.map(el => el[key] ?? (key === 'route' ? 'straight' : key === 'end' ? 'arrow' : 'none')));
+      if (key === 'size') {
+        const size = common(textEls.map(el => el.text?.autoSize ? 'auto' : valueOf(el, 'text', 'size')));
+        if (!input.querySelector(`option[value="${size}"]`) && Number.isFinite(+size) && +size > 0) input.add(new Option(size, size));
+        input.value = size ?? ''; continue;
+      }
       input.value = v ?? ''; if (input.type === 'number') input.placeholder = v == null ? '–' : '';
     }
     const bold = toolbar.querySelector('[data-act="bold"]');
@@ -137,9 +143,10 @@ export function initContextToolbar(stage, { onProperties } = {}) {
     const field = e.target.dataset.field; if (!field) return;
     commitInlineText();
     let val = e.target.value;
-    if (field === 'size') { if (val === '' || !Number.isFinite(+val)) return; val = Math.max(6, Math.min(240, +val)); e.target.value = val; }
+    if (field === 'size' && val !== 'auto') { if (val === '' || !Number.isFinite(+val)) return; val = Math.max(6, Math.min(240, +val)); e.target.value = val; }
     change(() => { for (const el of selected()) {
-      if (['size', 'align'].includes(field) && canText(el)) el.text = { ...el.text, [field]: val };
+      if (field === 'size' && canText(el)) el.text = { ...el.text, autoSize: val === 'auto', ...(val === 'auto' ? {} : { size: val }) };
+      else if (field === 'align' && canText(el)) el.text = { ...el.text, align: val };
       else if (el.kind === 'connector' && ['route', 'start', 'end'].includes(field)) el[field] = val;
     } });
   });

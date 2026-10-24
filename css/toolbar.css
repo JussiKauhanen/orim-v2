@@ -31,3 +31,19 @@
 .ctx-layers { width: 164px; display: grid; grid-template-columns: 30px 1fr; gap: 3px; align-items: center; font-size: 11px; }
 .ctx-layers span { cursor: pointer; padding: 7px 2px; }
 .ctx-layers span:hover { color: var(--accent); }
+
+/* Double-click drawing palette. */
+.quick-insert { position: absolute; z-index: 12; width: 268px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); overflow: auto; padding: 12px; border: 1px solid var(--line2); border-radius: 14px; background: var(--panel); box-shadow: 0 6px 26px #19223820; }
+.quick-insert-title { font-weight: 600; font-size: 12px; margin: 0 0 10px; }
+.quick-shapes { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; }
+.quick-shapes button { display: grid; place-items: center; height: 48px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; padding: 7px; }
+.quick-shapes svg { width: 100%; height: 100%; }
+.quick-insert button:hover, .pal-lines button:hover { background: var(--accent-soft); color: var(--accent); }
+.quick-insert button:focus-visible, .pal-lines button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.quick-lines, .pal-lines { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px; padding-top: 10px; margin-top: 10px; border-top: 1px solid var(--line); }
+.quick-lines button, .pal-lines button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; padding: 6px 2px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; color: var(--text); }
+.quick-lines svg, .pal-lines svg { width: 28px; height: 24px; }
+.quick-lines span, .pal-lines span { font-size: 9px; }
+.quick-insert small { display: block; margin-top: 10px; color: var(--muted); font-size: 10px; }
+.pal-lines { grid-column: 1 / -1; width: 100%; }
+.context-toolbar select[data-field="size"] { min-width: 61px; max-width: 70px; }

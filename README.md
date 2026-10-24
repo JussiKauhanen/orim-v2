@@ -30,6 +30,12 @@ The chat bar's **+** button opens **Replicate this image**, where you explicitly
 
 Blank diagrams start with Shapes open and Properties closed; existing diagrams and image imports start with both panels collapsed. The collapsed shape library becomes a floating tool rail: **V** selects, **H** pans, and Shapes opens a small picker. Selecting an element shows a floating editing toolbar; its Properties button opens the right panel when needed. **Diagram** and **Compare** switch between editing and the source overlay; **Shift+V** toggles them.
 
+Double-click empty canvas space to open a compact **Shapes & lines** picker. Choose a shape to place it at that point, or choose Line, Arrow, Elbow arrow or Curved arrow and drag on the canvas. Lines can attach to shapes at either end; hold Shift for 45° directions, or Escape to cancel. Double-clicking an existing shape still edits its text. The Shapes rail includes these line tools too. Flowchart shapes include Subprocess, Manual input and Delay. Wireframes include matching phone, desktop and iPad frames; the iPad has a portrait/landscape setting.
+
+New manually placed shapes use **Auto** font sizing: labels shrink to fit and return toward their normal size as space allows. The floating editing toolbar and Properties offer an Auto/common-size dropdown, preserving existing custom font sizes. Choosing a number fixes the size; Auto fitting is shared by the editor, SVG exports and image rendering. Existing saved and replicated font sizes are preserved.
+
+The top bar groups the board name, Diagram/Compare and board actions into compact floating panels. Zoom controls sit at the bottom left of the canvas. On smaller screens, More contains Library, theme and Settings.
+
 The **Overview** minimap appears while panning or zooming when some of the page or its contents are off-screen. It hides when everything fits or after 1.5 seconds without movement; hovering, focusing or dragging it keeps navigation available. Opening chat or receiving agent comments does not move it. It shows the page, its contents, and the current viewport. Click or drag it to navigate, or focus it and use the arrow keys. It can be collapsed. When a dragged element reaches a canvas edge, the view follows and gently zooms out. Night mode adapts plain light pages and neutral shapes on screen; saved diagrams, exports, source comparison, and AI scoring retain their original colours.
 
 ## The library grows

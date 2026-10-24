@@ -5,13 +5,15 @@ import { state, change, beginChange, endChange, emit, onChange, select, clearSel
 import { elementSvg, pageSvg, indexDoc } from './render.js';
 import { getKind, scopeFor, textBox, onKindsChanged } from './kinds.js';
 import { bounds, unionBounds, toLocal, toWorld, connectorPoints, endpoint, distToPoly, rotatePt } from './geom.js';
-import { onFontsChanged, ensureFont, fontStack } from './text.js';
+import { onFontsChanged, ensureFont, fontStack, fitText } from './text.js';
 import { initMinimap } from './minimap.js';
 import { displayDoc } from './theme.js';
+import { initQuickInsert } from './quick-insert.js';
 
 const NS = 'http://www.w3.org/2000/svg';
 export const cam = { x: 0, y: 0, z: 1 };
-let svg, world, pageLayer, content, overlay, sourceImg, stage, textEd;
+let svg, world, pageLayer, content, overlay, sourceImg, stage, textEd, quickInsert;
+let lineTool = { route: 'straight', end: 'arrow' };
 const nodes = new Map();
 // mode: 'diagram' (editable diagram only), 'source' (original image on top), 'both' (image over the diagram at `blend`)
 export const view = { mode: 'diagram', blend: 0.5, snap: true, tool: 'select', placing: null, locked: false };
@@ -25,6 +27,8 @@ export function initEditor(root) {
   svg = stage.querySelector('#canvas'); world = svg.querySelector('#world'); pageLayer = svg.querySelector('#pageLayer');
   content = svg.querySelector('#content'); overlay = svg.querySelector('#overlay'); sourceImg = svg.querySelector('#sourceImg');
   textEd = stage.querySelector('#textEd');
+  svg.setAttribute('tabindex', '0');
+  quickInsert = initQuickInsert(stage, { onShape(kind, x, y, props) { const el = addKindAt(kind, x, y, props); if (kind === 'text') editText(el.id); }, onLine: setLineTool });
   svg.addEventListener('pointerdown', onDown);
   svg.addEventListener('pointermove', onHover);
   svg.addEventListener('dblclick', onDbl);
@@ -37,8 +41,8 @@ export function initEditor(root) {
   window.addEventListener('themechange', () => { render(); placeTextEd(); });
   textEd.addEventListener('blur', commitText);
   textEd.addEventListener('keydown', e => { if (e.key === 'Escape' || (e.key === 'Enter' && (e.metaKey || e.ctrlKey))) { e.preventDefault(); textEd.blur(); } e.stopPropagation(); });
-  textEd.addEventListener('input', sizeTextEd);
-  onChange(what => { if (what === 'doc') { stopEdgeTracking(); nodes.clear(); content.innerHTML = ''; fitPage(); } render(); });
+  textEd.addEventListener('input', placeTextEd);
+  onChange(what => { if (what === 'doc') { quickInsert.close(); stopEdgeTracking(); nodes.clear(); content.innerHTML = ''; fitPage(); } render(); });
   onFontsChanged(() => { nodes.clear(); content.innerHTML = ''; render(); });
   onKindsChanged(() => { nodes.clear(); content.innerHTML = ''; render(); });
   initMinimap(stage, { cam, view, applyCamera, onViewChanged, beforeNavigate: stopEdgeTracking });
@@ -46,8 +50,10 @@ export function initEditor(root) {
 
 // ---------- camera ----------
 export function applyCamera() {
+  quickInsert?.close();
   world.setAttribute('transform', `matrix(${cam.z},0,0,${cam.z},${-cam.x * cam.z},${-cam.y * cam.z})`);
   const zb = stage.querySelector('#zoomBadge'); if (zb) zb.textContent = Math.round(cam.z * 100) + '%';
+  const fit = document.getElementById('zoomFit'); if (fit) fit.textContent = Math.round(cam.z * 100) + '%';
   drawOverlay(); placeTextEd(); viewChanged();
 }
 export function fitPage(pad = 40) {
@@ -183,7 +189,7 @@ function onDown(e) {
   svg.setPointerCapture(e.pointerId);
   const [wx, wy] = toW(e);
   if (e.button === 1 || spaceDown || view.tool === 'hand') { drag = { type: 'pan', sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y }; svg.style.cursor = 'grabbing'; return bind(); }
-  if (view.placing) { placeKind(view.placing, wx, wy, e); return; }
+  if (view.placing) { e.preventDefault(); placeKind(view.placing, wx, wy, e); return; }
   if (view.locked) { drag = { type: 'pan', sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y }; return bind(); }
   const h = e.target.dataset && e.target.dataset.h;
   if (h) {
@@ -331,11 +337,13 @@ function onMove(e, fromEdge = false) {
       drag.moved = true;
       if (!drag.c) {
         const src = doc.byId.get(drag.from.id);
-        drag.c = makeElement('connector', { from: drag.from, to: { x: wx, y: wy }, route: lastRoute, end: 'arrow', start: 'none', style: { stroke: src && src.style.stroke && src.style.stroke !== 'none' ? src.style.stroke : '#1f2328', strokeWidth: 2 } });
+        drag.c = makeElement('connector', { from: drag.from, to: { x: wx, y: wy }, route: drag.standalone ? lineTool.route : lastRoute, end: drag.standalone ? lineTool.end : 'arrow', start: 'none', style: { stroke: src && src.style.stroke && src.style.stroke !== 'none' ? src.style.stroke : '#1f2328', strokeWidth: 2 } });
         delete drag.c.params; delete drag.c.text; delete drag.c.x; delete drag.c.y; delete drag.c.w; delete drag.c.h; delete drag.c.rot;
         doc.elements.push(drag.c); select(drag.c.id);
       }
-      drag.c.to = attachAt(wx, wy, new Set([drag.from.id]));
+      let tx = wx, ty = wy;
+      if (drag.standalone && e.shiftKey) { const a = Math.round(Math.atan2(wy - drag.sy, wx - drag.sx) / (Math.PI / 4)) * Math.PI / 4, length = Math.hypot(wx - drag.sx, wy - drag.sy); tx = drag.sx + Math.cos(a) * length; ty = drag.sy + Math.sin(a) * length; }
+      drag.c.to = attachAt(tx, ty, new Set([drag.from.id]));
       emit('move'); return;
     }
     case 'cend': { const c = doc.byId.get(drag.el.id); c[drag.end] = attachAt(wx, wy, new Set([c[drag.end === 'from' ? 'to' : 'from'].id])); emit('move'); return; }
@@ -438,6 +446,10 @@ function onUp(e) {
   }
   if (d.type === 'connect') {
     connectTarget = null;
+    if (d.standalone) {
+      if (cancelled && d.c) state.doc.elements = state.doc.elements.filter(el => el.id !== d.c.id);
+      setPlacing(null); endChange(); return;
+    }
     if (!d.moved) { if (!cancelled) quickAdd(d.from); endChange(); return; }
     if (d.c) { lastRoute = d.c.route; if (!d.c.to.id) { /* free end: fine */ } }
     endChange(); return;
@@ -469,13 +481,12 @@ function onHover(e) {
 }
 
 function onDbl(e) {
-  if (view.locked) return;
+  if (view.locked || view.tool === 'hand' || view.placing) return;
   // The canvas holds pointer capture, so the event target is the canvas: hit-test by position.
   const [wx, wy] = toW(e);
   const el = pickAt(wx, wy);
   if (el) { if (!textEd.hidden && textEd.dataset.id === el.id) return; editText(el.id); return; }
-  change(d => { const t = makeElement('text', { x: wx - 4, y: wy - 14, w: 220, h: 32, text: { content: '', size: 18, align: 'left', valign: 'top', font: defaultFont() } }); d.elements.push(t); state.selection = new Set([t.id]); });
-  editText(state.doc.elements[state.doc.elements.length - 1].id);
+  quickInsert.open(e.clientX, e.clientY, wx, wy);
 }
 const defaultFont = () => { const t = state.doc.elements.find(e => e.text && e.text.font); return t ? t.text.font : 'Inter'; };
 
@@ -488,9 +499,11 @@ function onWheel(e) {
 }
 
 // ---------- placing new elements ----------
-export function setTool(tool) { view.tool = tool === 'hand' ? 'hand' : 'select'; view.placing = null; svg.style.cursor = view.tool === 'hand' ? 'grab' : ''; viewChanged(); }
+export function setTool(tool) { quickInsert?.close(); view.tool = tool === 'hand' ? 'hand' : 'select'; view.placing = null; svg.style.cursor = view.tool === 'hand' ? 'grab' : ''; viewChanged(); }
+export function setLineTool(route = 'straight', end = 'arrow') { lineTool = { route, end }; setPlacing('connector'); }
 export function setPlacing(kindId) { view.placing = kindId; if (kindId) view.tool = 'select'; svg.style.cursor = kindId ? 'crosshair' : view.tool === 'hand' ? 'grab' : ''; viewChanged(); }
 function placeKind(kindId, wx, wy, e) {
+  if (kindId === 'connector') { beginChange(); drag = { type: 'connect', standalone: true, from: attachAt(wx, wy, new Set()), sx: wx, sy: wy, moved: false }; bind(); return; }
   const el = makeElement(kindId);
   el.x = wx - el.w / 2; el.y = wy - el.h / 2;
   if (kindId === 'text') { el.text = { ...el.text, content: '', font: defaultFont() }; }
@@ -541,6 +554,7 @@ function placeTextEd() {
   }
   const r = svg.getBoundingClientRect(), sr = stage.getBoundingClientRect();
   const z = cam.z;
+  t = fitText({ ...t, content: textEd.value, pad: 0 }, box);
   Object.assign(textEd.style, {
     left: (r.left - sr.left + (box.x - cam.x) * z) + 'px', top: (r.top - sr.top + (box.y - cam.y) * z) + 'px',
     width: Math.max(40, box.w * z) + 'px', minHeight: Math.max(20, box.h * z) + 'px',
@@ -658,7 +672,7 @@ function onKey(e) {
   if (mod && e.key === '-') { e.preventDefault(); zoomBy(1 / 1.2); return; }
   if (mod && e.key === '0') { e.preventDefault(); fitPage(); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelection(); return; }
-  if (e.key === 'Escape') { setTool('select'); clearSelection(); return; }
+  if (e.key === 'Escape') { if (drag?.standalone) onUp({ type: 'pointercancel' }); setTool('select'); clearSelection(); return; }
   if (!mod && !e.altKey && !e.shiftKey && ['v', 'h'].includes(e.key.toLowerCase())) { e.preventDefault(); setTool(e.key.toLowerCase() === 'h' ? 'hand' : 'select'); return; }
   if (e.key === ']') { reorder(mod ? 'front' : 'forward'); return; }
   if (e.key === '[') { reorder(mod ? 'back' : 'backward'); return; }
@@ -671,7 +685,7 @@ function onKey(e) {
   }
   if (!mod && !e.altKey && e.key.length === 1 && state.selection.size === 1) {
     const id = [...state.selection][0]; const el = state.doc.byId.get(id);
-    if (el && el.kind !== 'image') { editText(id); textEd.value = e.key; sizeTextEd(); e.preventDefault(); }
+    if (el && el.kind !== 'image') { editText(id); textEd.value = e.key; placeTextEd(); e.preventDefault(); }
     return;
   }
   const tools = { r: 'rect', o: 'ellipse', t: 'text', n: 'note', d: 'diamond' };

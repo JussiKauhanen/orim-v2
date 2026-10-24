@@ -20,6 +20,7 @@ A kind is one element type: a parametric SVG template plus metadata. The same te
 - `viewBox` + `aspect: "meet"` draws in fixed units (icons); `vsw` is the stroke width converted to those units.
 - `outline`: `rect`, `ellipse`, `diamond` or `{ "poly": [["x","y"], …] }` — where connectors attach.
 - `textBox`: expressions for the text area (default: the whole box).
+- Element `text.autoSize: true` fits the label inside that area, using numeric `text.size` as its upper limit (minimum 6px). It changes layout without rewriting the saved size. Newly placed manual shapes enable it by default; explicit font sizes and loaded documents keep their existing behavior.
 
 ## Template language
 

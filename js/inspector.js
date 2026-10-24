@@ -3,7 +3,7 @@
 
 import { state, change, onChange, selected } from './store.js';
 import { getKind, allKinds } from './kinds.js';
-import { SUGGESTED_FONTS, SYSTEM_FONTS, ensureFont } from './text.js';
+import { SUGGESTED_FONTS, SYSTEM_FONTS, ensureFont, sizeOptions } from './text.js';
 import { CAPS } from './render.js';
 import { parse as parseColor, hex } from './color.js';
 import { deleteSelection, duplicateSelection, reorder, align, editText } from './editor.js';
@@ -115,7 +115,7 @@ function textPanel() {
   const fonts = [...new Set([...SUGGESTED_FONTS, ...SYSTEM_FONTS])];
   return `<section><h4>Text</h4><textarea data-path="text.content" rows="2" placeholder="Double-click the shape to type"></textarea>
   <label class="f wide"><span>Font</span><input type="text" list="fontList" data-path="text.font" placeholder="Inter"></label><datalist id="fontList">${fonts.map(f => `<option value="${f}">`).join('')}</datalist>
-  <div class="grid2">${num('text.size', 'Size', { step: 0.5, min: 4 })}${sel('text.weight', 'Weight', [['300', 'Light'], ['400', 'Regular'], ['500', 'Medium'], ['600', 'Semibold'], ['700', 'Bold'], ['800', 'Extra bold']])}</div>
+  <div class="grid2"><label class="f"><span>Font size</span><select data-path="text.size" aria-label="Font size">${sizeOptions()}</select></label>${sel('text.weight', 'Weight', [['300', 'Light'], ['400', 'Regular'], ['500', 'Medium'], ['600', 'Semibold'], ['700', 'Bold'], ['800', 'Extra bold']])}</div>
   ${color('text.color', 'Colour')}
   <div class="row">${seg('text.align', [['left', '⇤', 'Left'], ['center', '≡', 'Centre'], ['right', '⇥', 'Right']])}${seg('text.valign', [['top', '⤒', 'Top'], ['middle', '↕', 'Middle'], ['bottom', '⤓', 'Bottom']])}</div>
   <div class="grid2">${num('text.lineHeight', 'Line height', { step: 0.05, min: 0.6 })}${num('text.letterSpacing', 'Spacing', { step: 0.1 })}</div>
@@ -132,7 +132,7 @@ function connectorPanel(els) {
   h += '<div class="grid2">' + num('style.strokeWidth', 'Width', { step: 0.5, min: 0.5 }) + sel('style.dash', 'Dash', ['solid', 'dashed', 'dotted']) + '</div>';
   h += range('style.sketch', 'Hand-drawn', 0, 3, 0.05);
   h += `<button class="btn wide" data-act="flip">Swap ends</button><button class="btn wide" data-act="clearpts">Remove bend points</button></section>`;
-  h += `<section><h4>Label</h4><input type="text" data-path="text.content" placeholder="Double-click the line"><div class="grid2">${num('text.size', 'Size', { step: 0.5 })}${num('labelPos', 'Position', { step: 0.05, min: 0, max: 1 })}</div>${color('text.color', 'Colour')}</section>`;
+  h += `<section><h4>Label</h4><input type="text" data-path="text.content" placeholder="Double-click the line"><div class="grid2"><label class="f"><span>Font size</span><select data-path="text.size" aria-label="Label font size">${sizeOptions(14, false)}</select></label>${num('labelPos', 'Position', { step: 0.05, min: 0, max: 1 })}</div>${color('text.color', 'Colour')}</section>`;
   return h;
 }
 
@@ -146,6 +146,10 @@ function sync(force) {
     const t = targets(input)[0]; if (!t) continue;
     const path = input.dataset.path;
     let v = input.dataset.target === 'doc' ? getPath(t, path) : valueOf(t, path);
+    if (path === 'text.size' && input.tagName === 'SELECT') {
+      v = t.text?.autoSize ? 'auto' : v ?? 16;
+      if (!input.querySelector(`option[value="${v}"]`) && Number.isFinite(+v) && +v > 0) input.add(new Option(v, v));
+    }
     if (v == null && path in FALLBACKS) v = FALLBACKS[path];
     if (v == null && input.type === 'range') v = +input.min;
     if (input.type === 'checkbox') input.checked = !!v;
@@ -165,7 +169,7 @@ function sync(force) {
 function coerce(input, path) {
   if (input.type === 'checkbox') return input.checked;
   if (input.type === 'number' || input.type === 'range') return input.value === '' ? undefined : +input.value;
-  if (path === 'text.weight') return +input.value;
+  if (path === 'text.weight' || (path === 'text.size' && input.value !== 'auto')) return +input.value;
   if (input.dataset.kind === 'ctext') return input.value.trim() || 'none';
   return input.value;
 }
@@ -176,8 +180,13 @@ function apply(path, val, tgt) {
     for (const t of ts) {
       if (path.startsWith('params.')) { const k = getKind(t.kind); if (!k || !k.params || !(path.slice(7) in k.params)) continue; }
       if (path === 'kind') { convertKind(t, val); continue; }
+      if (t.kind === 'ipad' && path === 'params.orientation' && ((val === 'landscape' && t.w < t.h) || (val === 'portrait' && t.w > t.h))) [t.w, t.h] = [t.h, t.w];
       if (path === 'page.pattern.type' && !t.page.pattern) t.page.pattern = { gap: 24, size: 1.6, color: '#c8cdd4' };
       if (t.kind === 'connector' && path.startsWith('text.') && !t.text) t.text = {};
+      if (path === 'text.size') {
+        t.text = { ...t.text, autoSize: val === 'auto', ...(val === 'auto' ? {} : { size: val }) };
+        continue;
+      }
       setPath(t, path, val);
       if (path === 'text.font' && val) ensureFont(val);
     }

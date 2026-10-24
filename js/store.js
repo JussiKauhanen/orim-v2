@@ -82,7 +82,7 @@ export function makeElement(kindId, props = {}) {
     ...props,
     params: { ...d.params, ...(props.params || {}) },
     style: { ...d.style, ...(props.style || {}) },
-    text: { ...d.text, ...(props.text || {}) },
+    text: { ...d.text, ...(!['text', 'image', 'connector', 'line'].includes(kindId) && !kind?.pack && props.text?.size == null ? { autoSize: true } : {}), ...(props.text || {}) },
   };
 }
 
