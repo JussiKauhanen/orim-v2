@@ -1,0 +1,35 @@
+/* The library stays a panel; its compact form floats over the canvas. */
+.pal-rail { display: none; }
+.pal-flyout { position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%); width: 190px; padding: 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 16px #19223818; pointer-events: auto; }
+.pal-flyout-heading { display: flex; align-items: center; justify-content: space-between; margin: 0 2px 7px; font-size: 12px; }
+.pal-flyout-heading button { width: 25px; height: 25px; padding: 4px; border: 0; border-radius: 5px; background: transparent; cursor: pointer; }
+.pal-flyout-heading button:hover { background: var(--hover); }
+.pal-shape-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+.pal-shape-grid button { display: grid; place-items: center; height: 48px; padding: 3px; border: 1px solid transparent; border-radius: 7px; background: transparent; cursor: pointer; }
+.pal-shape-grid button:hover { background: var(--hover); }
+.pal-shape-grid button.on { border-color: var(--accent); background: var(--accent-soft); }
+.pal-all-shapes { display: flex; align-items: center; justify-content: space-between; gap: 6px; width: 100%; padding: 10px 2px 0; margin-top: 9px; border: 0; border-top: 1px solid var(--line); color: var(--muted); background: transparent; font-size: 11px; cursor: pointer; }
+.pal-all-shapes:hover { color: var(--text); }
+.pal-all-shapes .ui-icon { width: 14px; height: 14px; }
+
+#app.pal-collapsed { --palette-width: 0px; }
+#app.pal-collapsed .pal-search, #app.pal-collapsed .pal-list { display: none; }
+#app.pal-collapsed .palette { position: absolute; grid-area: auto; left: 14px; top: calc(50% + 24px); bottom: auto; width: 52px; max-height: calc(100% - 88px); min-height: 0; transform: translateY(-50%); display: block; overflow: visible; border: 0; background: transparent; z-index: 6; pointer-events: none; }
+#app.pal-collapsed .pal-toggle, #app.pal-collapsed .pal-quick { display: none; }
+#app.pal-collapsed .pal-rail { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 5px; width: 52px; max-height: calc(100dvh - 88px); overflow-y: auto; scrollbar-width: none; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 2px 5px #1922380a, 0 4px 14px #19223814; pointer-events: auto; }
+.pal-rail::-webkit-scrollbar { display: none; }
+.pal-rail button { position: relative; display: grid; place-items: center; flex: none; width: 40px; height: 40px; padding: 9px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; }
+.pal-rail button:hover { background: var(--hover); color: var(--text); }
+.pal-rail button.on { background: var(--accent-soft); color: var(--accent); }
+.pal-rail .ui-icon { width: 21px; height: 21px; pointer-events: none; }
+.pal-rail button:focus-visible, .pal-flyout button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pal-rail-sep { display: block; flex: none; width: 24px; height: 1px; margin: 5px 0; background: var(--line); }
+.pal-caret { position: absolute; right: 3px; bottom: 5px; width: 0; height: 0; border-style: solid; border-width: 3px 0 0 3px; border-color: transparent transparent transparent currentColor; opacity: .6; }
+
+@media (max-width: 900px) {
+  #app .palette { display: flex; position: absolute; grid-area: auto; top: 58px; bottom: 12px; left: 8px; width: min(232px, 82vw); z-index: 7; border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 4px 20px #19223820; overflow: hidden; }
+  #app.pal-collapsed .palette { display: block; top: calc(50% + 24px); left: 8px; width: 46px; max-height: calc(100% - 150px); border: 0; border-radius: 0; box-shadow: none; overflow: visible; }
+  #app.pal-collapsed .pal-rail { width: 46px; max-height: calc(100dvh - 150px); padding: 4px; }
+  .pal-rail button { width: 36px; height: 36px; padding: 8px; }
+  .pal-flyout { left: calc(100% + 8px); width: min(190px, calc(100vw - 74px)); }
+}

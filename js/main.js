@@ -8,6 +8,7 @@ import { initLibrary, lib, onLibraryChanged, saveTemplate, deleteTemplate, expor
 import { sceneSvg, indexDoc } from './render.js';
 import { ensureFont } from './text.js';
 import { initAgents } from './ai/agents-ui.js';
+import { initAIChat } from './ai/chat-ui.js';
 import { replicate, refine, onRun, current, stop, styleGuide } from './ai/replicate.js';
 import { settings, hasKey, mockMode } from './ai/llm.js';
 import { getKind, removeKind } from './kinds.js';
@@ -16,11 +17,13 @@ import { icon, welcomeDoodle } from './icons.js';
 import { displayDoc } from './theme.js';
 import { initSettings, openSettings } from './settings-ui.js';
 import { initContextToolbar } from './context-toolbar.js';
+import { initReplicateImage } from './replicate-image.js';
+import { providerMark, providerNames } from './ai/provider-ui.js';
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-let askStyle = null;
+let aiChat, repImage, displayedProvider;
 let sideCollapsed = true, activeSide = 'inspect';
 function applyTheme() {
   let t = 'light'; try { t = localStorage.getItem('orim.theme') || 'light'; } catch (_) {}
@@ -62,6 +65,7 @@ async function openDoc(doc, { push = true } = {}) {
   $('#home').hidden = true; $('#app').hidden = false;
   for (const e of doc.elements) if (e.text?.font) ensureFont(e.text.font);
   view.mode = 'diagram'; // always open on the editable diagram
+  editorApi.setTool('select');
   setDoc(doc);
   setPaletteCollapsed(!!doc.elements.length || !!doc.source, { auto: true });
   showSide('inspect', { open: false });
@@ -89,24 +93,26 @@ async function startFromImage(src, name) {
   d.source = { src, w: img.width, h: img.height, scale: s };
   await putDoc(d);
   await openDoc(d);
-  setViewMode('source');
-  replicateDialog();
+  setViewMode('both');
+  replicateDialog(src);
 }
 
-function replicateDialog() {
+function replicateDialog(initialSource) {
   const s = settings();
   const dlg = $('#repDlg');
   $('#repIter').value = s.iterations; $('#repInstr').value = ''; $('#repDiagramOnly').checked = false; $('#repDesign').checked = true;
   $('#repKeyWarn').hidden = hasKey();
-  $('#repPreview').src = state.doc.source?.src || '';
+  repImage.open(state.doc, initialSource);
   dlg.showModal();
 }
 async function runReplicate() {
   if (!hasKey()) { openSettings(); return; }
+  let src;
+  try { src = repImage.source(); } catch (_) { toast('Choose an image that can be opened before replicating.'); return; }
   $('#repDlg').close();
-  showSide('agents');
+  openAI();
   setViewMode('diagram');
-  await replicate({ src: state.doc.source.src, instructions: $('#repInstr').value.trim(), diagramOnly: $('#repDiagramOnly').checked, iterations: +$('#repIter').value, designKinds: $('#repDesign').checked });
+  await replicate({ src, instructions: $('#repInstr').value.trim(), diagramOnly: $('#repDiagramOnly').checked, iterations: +$('#repIter').value, designKinds: $('#repDesign').checked });
   updateTop();
 }
 
@@ -117,11 +123,10 @@ function updateTop() {
   $('#undoBtn').disabled = !canUndo(); $('#redoBtn').disabled = !canRedo();
   const hasSrc = !!state.doc.source;
   $('#srcCtl').hidden = !hasSrc;
-  $('#replicateBtn .action-title').textContent = hasSrc && state.doc.elements.length ? 'Re-replicate image' : 'Replicate an image';
-  $('#refineBtn').hidden = !hasSrc || !state.doc.elements.length;
   const busy = current?.status === 'running';
-  for (const id of ['askBtn', 'refineBtn', 'replicateBtn']) $('#' + id).disabled = busy;
   $('#aiLauncher').classList.toggle('working', busy && current.docId === state.doc.id);
+  updateProviderMark();
+  aiChat?.refresh();
   syncView();
 }
 function syncView() {
@@ -129,22 +134,42 @@ function syncView() {
   $('#blendSlider').hidden = view.mode !== 'both'; $('#blendSlider').value = view.blend;
 }
 function setSideCollapsed(value) {
-  if (value && $('#side').contains(document.activeElement)) (activeSide === 'agents' ? $('#aiLauncher') : $('#sideToggle')).focus({ preventScroll: true });
+  if (value && $('#side').contains(document.activeElement)) (activeSide === 'ai' ? $('#aiLauncher') : $('#sideToggle')).focus({ preventScroll: true });
   sideCollapsed = value;
   $('#app').classList.toggle('side-collapsed', value);
   $('#side').setAttribute('aria-hidden', String(value));
   $('#sideToggle').setAttribute('aria-expanded', String(!value));
   $('#sideToggle').title = value ? 'Open properties panel' : 'Collapse right panel';
-  const aiOpen = !value && activeSide === 'agents';
-  $('#aiLauncher').setAttribute('aria-expanded', String(aiOpen));
-  $('#aiLauncher').setAttribute('aria-label', aiOpen ? 'Close AI workspace' : 'Open AI workspace');
   window.dispatchEvent(new Event('resize'));
 }
 function showSide(which, { open = true } = {}) {
   activeSide = which;
-  for (const b of document.querySelectorAll('[data-side]')) b.classList.toggle('on', b.dataset.side === which);
-  $('#inspector').hidden = which !== 'inspect'; $('#aiWorkspace').hidden = which !== 'agents';
+  for (const b of document.querySelectorAll('[data-side]')) {
+    const selected = b.dataset.side === which;
+    b.classList.toggle('on', selected); b.setAttribute('aria-selected', String(selected)); b.tabIndex = selected ? 0 : -1;
+  }
+  $('#inspector').hidden = which !== 'inspect'; $('#aiWorkspace').hidden = which !== 'ai'; $('#agents').hidden = which !== 'agents';
+  setAIExpanded(which === 'ai' && open);
   if (open) setSideCollapsed(false);
+}
+function setAIExpanded(value) {
+  aiChat?.setExpanded(value);
+  $('#app').classList.toggle('ai-chat-open', value);
+  $('#aiLauncher').hidden = value;
+  $('#aiLauncher').setAttribute('aria-expanded', String(value));
+}
+function updateProviderMark() {
+  const provider = settings().provider;
+  if (provider === displayedProvider) return;
+  displayedProvider = provider;
+  $('#aiLauncher').innerHTML = providerMark(provider);
+  $('#aiLauncher').title = `Ask ${providerNames[provider]}`;
+  $('#aiTab [data-icon]').innerHTML = providerMark(provider);
+}
+function openAI() { welcomeDismissed = true; updateWelcome(); setAIExpanded(true); aiChat.focus(); }
+function chooseReplicationImage() {
+  if (current?.status === 'running') return;
+  replicateDialog();
 }
 
 // ---------- library dialog ----------
@@ -168,13 +193,15 @@ async function exportAs(kind) {
 // ---------- boot ----------
 async function boot() {
   applyTheme();
-  initSettings({ toast, onSaved: () => { $('#keyNote').hidden = hasKey(); } });
+  initSettings({ toast, onSaved: () => { $('#keyNote').hidden = hasKey(); updateProviderMark(); aiChat?.refresh(); } });
   for (const el of document.querySelectorAll('[data-icon]')) el.innerHTML = icon(el.dataset.icon);
   initEditor($('#stage'));
   const launcher = document.createElement('button'); launcher.id = 'aiLauncher'; launcher.className = 'ai-launcher';
-  launcher.type = 'button'; launcher.setAttribute('aria-label', 'Open AI workspace'); launcher.setAttribute('aria-expanded', 'false'); launcher.setAttribute('aria-controls', 'aiWorkspace'); launcher.title = 'AI workspace'; launcher.innerHTML = icon('ai');
+  launcher.type = 'button'; launcher.setAttribute('aria-label', 'Open AI chat'); launcher.setAttribute('aria-expanded', 'false'); launcher.setAttribute('aria-controls', 'aiComposerDock'); launcher.title = 'AI chat';
   $('#stage').appendChild(launcher);
-  launcher.addEventListener('click', () => { if (!sideCollapsed && activeSide === 'agents') setSideCollapsed(true); else showSide('agents'); });
+  updateProviderMark();
+  launcher.addEventListener('click', openAI);
+  repImage = initReplicateImage($('#repDlg'));
   const pill = document.createElement('div'); pill.id = 'aiPill'; pill.hidden = true; $('#stage').appendChild(pill);
   const welcome = document.createElement('div'); welcome.id = 'welcome'; welcome.hidden = true;
   welcome.innerHTML = `<div class="card"><div class="ill">${welcomeDoodle()}</div><h2>A blank canvas. A little possibility.</h2><p>Start with a shape, an idea, or a picture.<br>Make it yours from there.</p><div class="acts"><button class="welcome-action draw" data-w="draw">${icon('draw')}<span>Draw with shapes</span></button><button class="welcome-action ask" data-w="ask">${icon('ai')}<span>Ask AI to draw it</span></button><button class="welcome-action replicate" data-w="replicate">${icon('image')}<span>Replicate an image</span></button><button class="welcome-action templates" data-w="templates">${icon('templates')}<span>Start from a template</span></button></div></div>`;
@@ -182,16 +209,30 @@ async function boot() {
   welcome.addEventListener('click', e => {
     const b = e.target.closest('[data-w]'); if (!b) return;
     if (b.dataset.w === 'draw') { welcomeDismissed = true; updateWelcome(); setPaletteCollapsed(false); $('#palSearch')?.focus(); }
-    if (b.dataset.w === 'ask') $('#askBtn').click();
+    if (b.dataset.w === 'ask') openAI();
     if (b.dataset.w === 'replicate') $('#replicateBtn').click();
     if (b.dataset.w === 'templates') $('#homeBtn').click();
   });
   initInspector($('#inspector'));
   initContextToolbar($('#stage'), { onProperties: () => showSide('inspect') });
+  aiChat = initAIChat($('#aiWorkspace'), {
+    stage: $('#stage'), onOpen: openAI, onClose: () => { setAIExpanded(false); $('#aiLauncher').focus(); }, onPanel: () => showSide('ai'),
+    templates: () => lib.templates,
+    onSettings: openSettings, onAgents: () => showSide('agents'),
+    onAttach: chooseReplicationImage,
+    onRefine: () => { if (!hasKey()) return openSettings(); openAI(); refine({ rounds: 1 }); },
+    onSend: (instructions, templateId) => {
+      if (!hasKey()) { openSettings(); return false; }
+      const t = lib.templates.find(t => t.id === templateId);
+      if (t) change(d => { d.page.background = t.doc.page.background; d.page.pattern = t.doc.page.pattern || null; });
+      refine({ rounds: 1, instructions, style: t ? styleGuide(t.doc) : '' });
+      return true;
+    },
+  });
   initAgents($('#agents'), {
     pillEl: pill,
     onImage: (src, label) => { $('#imgDlgImg').src = src; $('#imgDlgCap').textContent = label; $('#imgDlg').showModal(); },
-    onAction: act => { if (act === 'undo') undo(); else if (act === 'ask') $('#askBtn').click(); else if (act === 'refine') $('#refineBtn').click(); },
+    onAction: act => { if (act === 'undo') undo(); else if (act === 'ask') openAI(); else if (act === 'refine') $('#refineBtn').click(); },
   });
   await initLibrary();
   initPalette($('#palette'));
@@ -259,41 +300,23 @@ async function boot() {
   $('#zoomOut').addEventListener('click', () => zoomBy(1 / 1.25)); $('#zoomIn').addEventListener('click', () => zoomBy(1.25)); $('#zoomFit').addEventListener('click', () => fitPage());
   $('#viewSeg').addEventListener('click', e => { const b = e.target.closest('[data-view]'); if (b) setViewMode(b.dataset.view); });
   $('#blendSlider').addEventListener('input', e => setViewMode('both', +e.target.value));
-  window.addEventListener('keydown', e => { if (e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !$('#app').hidden && state.doc?.source && !/input|textarea|select/i.test(e.target.tagName)) { e.preventDefault(); e.stopImmediatePropagation(); setViewMode(view.mode === 'diagram' ? 'source' : 'diagram'); } }, true);
-  $('#replicateBtn').addEventListener('click', () => {
-    if (state.doc.source) return replicateDialog();
-    const i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*';
-    i.onchange = () => { const f = i.files[0]; if (!f) return; const r = new FileReader(); r.onload = async () => { state.doc.source = { src: r.result }; const img = new Image(); img.onload = () => { const s = Math.min(1, 1568 / Math.max(img.width, img.height), Math.sqrt(1150000 / (img.width * img.height))); change(d => { d.source = { src: r.result, w: img.width, h: img.height, scale: s }; d.page.w = Math.round(img.width * s); d.page.h = Math.round(img.height * s); }); fitPage(); replicateDialog(); }; img.src = r.result; }; r.readAsDataURL(f); };
-    i.click();
-  });
-  $('#refineBtn').addEventListener('click', async () => { if (!hasKey()) return openSettings(); showSide('agents'); await refine({ rounds: 1 }); });
-  $('#askBtn').addEventListener('click', () => {
-    $('#askIn').value = '';
-    const blank = state.doc.elements.length < 3;
-    $('#askStyleWrap').hidden = !blank; askStyle = null;
-    $('#askDlg h2').innerHTML = icon('ai') + (blank ? 'Ask AI to draw a diagram' : 'Ask AI to change the diagram');
-    $('#askIn').placeholder = blank ? 'e.g. lead flow from our website chat through Azure into Dynamics 365, one column per system' : 'e.g. make all connectors dashed and add a legend at the bottom';
-    if (blank) $('#askStyles').innerHTML = `<button class="tp none on" data-tp=""><div class="th">No preference</div><span>Let the AI choose</span></button>` + lib.templates.map(t => `<button class="tp" data-tp="${esc(t.id)}"><div class="th">${thumb(t.doc)}</div><span>${esc(t.name)}</span></button>`).join('');
-    $('#askDlg').showModal(); $('#askIn').focus();
-  });
-  $('#askStyles').addEventListener('click', e => { const b = e.target.closest('[data-tp]'); if (!b) return; e.preventDefault(); askStyle = b.dataset.tp || null; for (const x of $('#askStyles').children) x.classList.toggle('on', x === b); });
-  $('#askGo').addEventListener('click', async e => {
-    e.preventDefault(); const q = $('#askIn').value.trim(); if (!q) return; $('#askDlg').close(); if (!hasKey()) return openSettings();
-    const t = askStyle && lib.templates.find(x => x.id === askStyle);
-    if (t) change(d => { d.page.background = t.doc.page.background; d.page.pattern = t.doc.page.pattern || null; });
-    showSide('agents');
-    await refine({ rounds: 1, instructions: q, style: t ? styleGuide(t.doc) : '' });
-  });
+  window.addEventListener('keydown', e => { if (e.shiftKey && e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !$('#app').hidden && state.doc?.source && !/input|textarea|select/i.test(e.target.tagName)) { e.preventDefault(); e.stopImmediatePropagation(); setViewMode(view.mode === 'diagram' ? 'both' : 'diagram'); } }, true);
   $('#repGo').addEventListener('click', e => { e.preventDefault(); runReplicate(); });
   for (const b of document.querySelectorAll('[data-export]')) b.addEventListener('click', () => { $('#exportMenu').hidden = true; exportAs(b.dataset.export); });
   $('#exportBtn').addEventListener('click', e => { e.stopPropagation(); $('#exportMenu').hidden = !$('#exportMenu').hidden; });
   document.addEventListener('click', e => { if (!e.target.closest('#exportMenu')) $('#exportMenu').hidden = true; });
   $('#settingsBtn').addEventListener('click', openSettings);
   $('#libraryBtn').addEventListener('click', openLibrary);
-  $('#aiSettings').addEventListener('click', openSettings);
   $('#sideToggle').addEventListener('click', () => { if (sideCollapsed) showSide('inspect'); else setSideCollapsed(true); });
   $('#sideClose').addEventListener('click', () => setSideCollapsed(true));
   for (const b of document.querySelectorAll('[data-side]')) b.addEventListener('click', () => showSide(b.dataset.side));
+  $('#side .tabs').addEventListener('keydown', e => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault(); e.stopPropagation();
+    const tabs = [...document.querySelectorAll('[data-side]')], at = tabs.indexOf(e.target);
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? tabs.length - 1 : (at + (e.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+    showSide(tabs[next].dataset.side); tabs[next].focus();
+  });
 
   // dialogs
   $('#libDlg').addEventListener('click', async e => {

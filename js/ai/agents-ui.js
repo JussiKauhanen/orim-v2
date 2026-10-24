@@ -28,7 +28,7 @@ const steps = new Map();
 
 function empty() {
   mountedRun = null; steps.clear();
-  root.innerHTML = `<div class="ag-empty"><h3>A small team, one canvas</h3><p>Choose an action above. Follow each agent's work here as your diagram takes shape.</p><div class="ag-team">${['analyst', 'designer', 'critic'].map(k => `<div>${avatar(AGENTS[k])}<span>${AGENTS[k].name}</span></div>`).join('')}</div></div>`;
+  root.innerHTML = `<div class="ag-empty"><h3>A small team, one canvas</h3><p>Start in the AI tab. Follow each agent's work here as your diagram takes shape.</p><div class="ag-team">${['analyst', 'designer', 'critic'].map(k => `<div>${avatar(AGENTS[k])}<span>${AGENTS[k].name}</span></div>`).join('')}</div><button type="button" class="btn" data-act="ask">Open AI</button></div>`;
   root.scrollTop = 0;
   drawPill();
 }

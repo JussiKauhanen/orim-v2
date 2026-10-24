@@ -13,26 +13,34 @@ python3 tools/serve.py 8123
 The Agents tab shows every step live: streamed reasoning, measurements, each designer attempt and the score after each critic round.
 
 1. **Preparation** (local): the image is scaled to the size the model sees, so coordinates line up. The palette and connected colour regions with pixel-exact boxes are measured.
-2. **Vision analyst** (Claude): gets the image, the palette, the regions, the kind catalogue and learned lessons, and writes a scene in JSON. Elements appear on the canvas while the reply streams in.
+2. **Vision analyst** (selected AI provider): gets the image, the palette, the regions, the kind catalogue and learned lessons, and writes a scene in JSON. Elements appear on the canvas while the reply streams in.
 3. **Measurer** (local): snaps box edges to the real pixel edges and replaces fill, stroke and text colours with sampled ones. Logos and photos the analyst marked `crop` are copied from the source.
-4. **Shape designer** (Claude, loop): for each shape the catalogue lacks, it writes a parametric kind, renders it, compares it with the crop and tries again with a target | render | difference strip. Good designs are saved to the library; weak ones fall back to a pixel crop.
-5. **Critic** (Claude, loop): renders the scene, scores it against the source (0–100) with a difference heat map, and returns edits. A round that makes the score worse is reverted. It also writes down general lessons.
+4. **Shape designer** (selected AI provider, loop): for each shape the catalogue lacks, it writes a parametric kind, renders it, compares it with the crop and tries again with a target | render | difference strip. Good designs are saved to the library; weak ones fall back to a pixel crop.
+5. **Critic** (selected AI provider, loop): renders the scene, scores it against the source (0–100) with a difference heat map, and returns edits. A round that makes the score worse is reverted. It also writes down general lessons.
 
 Afterwards it is an ordinary diagram: move, resize, rotate, recolour, retype, duplicate, delete; drag from a shape's blue dots to connect (ends attach and follow); click a dot to add a connected copy; drag the line's middle to bend it; switch connectors between straight, curved, elbow and spline. **Refine** runs another critic round, **Ask AI** applies a change you describe.
+
+The selected AI provider's logo at the bottom right opens a floating chat bar on the canvas. Enter sends, Shift+Enter adds a line, and closing the bar returns to the logo. **Chat & ideas** opens suggestions and conversation history in the right panel, alongside **Agents** and **Properties**. **Refine from image** runs another comparison. Prompt drafts and conversations stay with their diagram during the session.
+
+The chat bar's **+** button opens **Replicate this image**, where you explicitly choose the original source, an image on the canvas, or an uploaded file. Drag a rectangle over the preview to crop, drag inside it to move the crop, or use its corner handles to resize. Arrow keys move the crop; Alt+arrow keys resize it. **Use full image** resets the selection. Only the selected pixels are sent to replication, and cancelling the dialog leaves the document unchanged.
+
+Blank diagrams start with Shapes open and the right panel closed; existing diagrams and image imports start with both panels collapsed. The collapsed shape library becomes a floating tool rail: **V** selects, **H** pans, and Shapes opens a small picker. Selecting an element shows a floating editing toolbar. If the right panel is open, selection also switches it to Properties; the toolbar's Properties button opens it when needed. **Diagram** and **Compare** switch between editing and the source overlay; **Shift+V** toggles them.
 
 The **Overview** minimap shows the page, its contents, and the current viewport. Click or drag it to navigate, or focus it and use the arrow keys. It can be collapsed. When a dragged element reaches a canvas edge, the view follows and gently zooms out. Night mode adapts plain light pages and neutral shapes on screen; saved diagrams, exports, source comparison, and AI scoring retain their original colours.
 
 ## The library grows
 
 - `library/kinds/*.json` — built-in kinds: basic and flowchart shapes, containers, wireframe parts, line icons, and the official Azure, Power Platform and Dynamics 365 icons (from `old/`, see `old/THIRD_PARTY_NOTICES.md`).
-- Learned kinds, lessons and your templates are stored in the browser. In **Settings → Library folder** (Chrome or Edge) connect this project folder, and they are also written to `library/kinds/learned/`, `library/lessons.json` and `library/templates/`, with `library/index.json` updated. Commit and push, and GitHub Pages serves them to everyone.
+- Learned kinds, lessons and your templates are stored in the browser. In **Settings → Advanced → Library folder** (Chrome or Edge) connect this project folder, and they are also written to `library/kinds/learned/`, `library/lessons.json` and `library/templates/`, with `library/index.json` updated. Commit and push, and GitHub Pages serves them to everyone.
 - Every kind in the library is offered to the analyst and the critic, and lessons are added to the analyst's instructions, so new capabilities are used from the next run on.
 
 Kinds are plain JSON with a parametric SVG template — see [docs/kinds.md](docs/kinds.md). The inspector builds controls from a kind's params, so learned shapes are editable like built-in ones.
 
 ## Models
 
-Settings supports **Anthropic Claude, OpenAI, and Google Gemini**. Choose a provider, add its API key, then choose the model and effort for each agent. Keys and model choices are remembered separately for each provider in this browser; keys are sent only to that provider's API. Switching providers in Settings takes effect when you save.
+Settings opens on **Bring your AI**: select a **Claude**, **ChatGPT (OpenAI)**, or **Gemini** card to enter a key (each provider has a direct link to get one). ChatGPT uses the existing OpenAI API connection and saved key. The compact **Cheap / Medium / High** control shows the chosen model and can reset to Medium. These presets set the models, reasoning effort, checking rounds, design attempts, and run budget together. **Advanced** keeps individual model, effort, and run controls; opening it preserves existing choices. Saved custom settings remain intact until a preset is selected.
+
+Keys, models, and tuning are remembered separately for each provider in this browser; keys are sent only to that provider's API. Select a saved provider to switch, or use **Delete key** to remove its key. Both actions take effect when you save; Cancel discards the draft. Removing one key preserves the other providers' keys and settings. OpenAI requests include an explicit JSON instruction in the input messages for every agent role.
 
 All three providers stream text and reasoning summaries into the Agents tab, support image input and cancellation, and report usage against the per-run budget. Effort is mapped to each provider's supported levels. Claude retains adaptive thinking, prompt caching, and server-side refusal fallback. The budget is checked after completed requests, so concurrent shape designs can exceed it. Model prices shown in Settings are estimates per million tokens; actual availability and charges depend on the provider and account.
 
@@ -50,7 +58,7 @@ node --test tests/llm.test.mjs
 
 ## Files
 
-- `js/` — editor (`editor.js`, `inspector.js`, `palette.js`, `minimap.js`), model (`store.js`, `kinds.js`, `render.js`, `geom.js`, `text.js`, `expr.js`), library (`library.js`), shared SVG controls (`icons.js`) and screen-only colours (`theme.js`)
-- `js/ai/` — `llm.js` (providers), `prompts.js`, `replicate.js` (pipeline), `vision.js` (measuring and scoring), `raster.js`, `agents-ui.js`, `mock.js`
+- `js/` — editor (`editor.js`, `inspector.js`, `palette.js`, `minimap.js`, `context-toolbar.js`), settings (`settings-ui.js`), replication image picker/cropper (`replicate-image.js`), model (`store.js`, `kinds.js`, `render.js`, `geom.js`, `text.js`, `expr.js`), library (`library.js`), shared SVG controls (`icons.js`) and screen-only colours (`theme.js`)
+- `js/ai/` — `llm.js` (providers), `prompts.js`, `replicate.js` (pipeline), `vision.js` (measuring and scoring), `raster.js`, `chat-ui.js`, `agents-ui.js`, `mock.js`
 - `tools/` — `serve.py` (no-cache dev server), `make-templates.mjs`, `make-icons.mjs`, `import-ms-icons.mjs`, `dev.js` (console helpers: measure a sample, score a template)
 - `old/` — the previous Mermaid-based orim, kept for reference

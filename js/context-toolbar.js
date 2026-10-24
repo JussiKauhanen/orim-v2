@@ -1,5 +1,5 @@
 // Small selection controls. All edits go through the existing undo/autosave paths.
-import { state, selected, onChange, change } from './store.js';
+import { state, selected, onChange, change, undo, redo } from './store.js';
 import { cam, view, onViewChanged, duplicateSelection, deleteSelection, reorder, editText } from './editor.js';
 import { bounds, unionBounds } from './geom.js';
 import { getKind } from './kinds.js';
@@ -145,6 +145,9 @@ export function initContextToolbar(stage, { onProperties } = {}) {
   });
   toolbar.addEventListener('keydown', e => {
     e.stopPropagation();
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z' && !/^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName)) {
+      e.preventDefault(); e.shiftKey ? redo() : undo(); return;
+    }
     if (e.key === 'Escape') { closePopup(); toolbar.querySelector('button')?.focus(); }
   });
   document.addEventListener('pointerdown', e => { if (!toolbar.contains(e.target)) closePopup(); });

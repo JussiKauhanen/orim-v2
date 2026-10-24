@@ -3,7 +3,7 @@
 import { allKinds, onKindsChanged, getKind } from './kinds.js';
 import { elementSvg } from './render.js';
 import { makeElement } from './store.js';
-import { addKindAt, dropKind, setPlacing } from './editor.js';
+import { addKindAt, dropKind, setPlacing, setTool, view, onViewChanged } from './editor.js';
 import { lib } from './library.js';
 import { icon } from './icons.js';
 import { displayElement } from './theme.js';
@@ -17,6 +17,7 @@ export function setPaletteCollapsed(v, { auto = false } = {}) {
   collapsed = v; autoCollapsed = v && auto;
   document.getElementById('app').classList.toggle('pal-collapsed', v);
   if (root) {
+    setShapesOpen(false);
     const b = root.querySelector('.pal-toggle');
     b.innerHTML = icon(v ? 'panel-open' : 'panel-close');
     b.setAttribute('aria-label', v ? 'Expand shapes panel' : 'Collapse shapes panel');
@@ -44,30 +45,67 @@ export function kindPreview(kindId, size = 44, override) {
 export function initPalette(el) {
   root = el;
   const quick = [['text', 'Text (T)'], ['rect', 'Rectangle (R)'], ['ellipse', 'Ellipse (O)'], ['diamond', 'Diamond (D)'], ['note', 'Sticky note (N)']];
-  root.innerHTML = `<button class="pal-toggle" title="Collapse shapes panel" aria-label="Collapse shapes panel" aria-expanded="true">${icon('panel-close')}</button><div class="pal-search"><input type="search" placeholder="Search shapes…" aria-label="Search shapes" id="palSearch"></div><div class="pal-quick">${quick.map(([k, title]) => `<button data-k="${k}" title="${title}" aria-label="${title}">${icon(k)}</button>`).join('')}<button data-img="1" title="Add image" aria-label="Add image">${icon('image')}</button><button data-expand="1" class="only-rail" title="All shapes and icons" aria-label="All shapes and icons">${icon('templates')}</button></div><div class="pal-list"></div>`;
+  const button = (attrs, title, svg) => `<button type="button" ${attrs} title="${title}" aria-label="${title}">${svg}</button>`;
+  const toolIcon = paths => `<svg class="ui-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+  root.innerHTML = `<button class="pal-toggle" title="Collapse shapes panel" aria-label="Collapse shapes panel" aria-expanded="true">${icon('panel-close')}</button><div class="pal-search"><input type="search" placeholder="Search shapes…" aria-label="Search shapes" id="palSearch"></div><div class="pal-quick">${quick.map(([k, title]) => button(`data-k="${k}"`, title, icon(k))).join('')}${button('data-img="1"', 'Add image', icon('image'))}</div>
+    <div class="pal-rail" role="toolbar" aria-label="Canvas tools" aria-orientation="vertical">
+      ${button('data-tool="select"', 'Select (V)', toolIcon('<path d="m5 3 14 9-7 1.5L9 20Z"/>'))}
+      ${button('data-tool="hand"', 'Hand (H or Space)', toolIcon('<path d="M8 12V6.5a1.5 1.5 0 0 1 3 0v4M11 9V4.5a1.5 1.5 0 0 1 3 0V11m0-4.5a1.5 1.5 0 0 1 3 0V12m0-3.5a1.5 1.5 0 0 1 3 0V14c0 4-2.5 7-6 7h-1c-2 0-3.4-.8-4.5-2.5L4 12.8a1.5 1.5 0 0 1 2.3-1.9L8 13"/>'))}
+      <span class="pal-rail-sep" role="separator"></span>
+      ${button('data-k="note"', 'Sticky note (N)', icon('note'))}
+      ${button('data-k="text"', 'Text (T)', icon('text'))}
+      ${button('data-shapes="1" class="pal-shapes-btn" aria-controls="palShapes" aria-expanded="false"', 'Shapes', toolIcon('<rect x="3" y="10" width="10" height="10" rx="1.5"/><circle cx="16" cy="8" r="5"/>') + '<span class="pal-caret"></span>')}
+      ${button('data-img="1"', 'Add image', icon('image'))}
+      <span class="pal-rail-sep" role="separator"></span>
+      ${button('data-expand="1"', 'All shapes and icons', icon('templates'))}
+    </div>
+    <div id="palShapes" class="pal-flyout" role="group" aria-label="Shapes" hidden><div class="pal-flyout-heading"><b>Shapes</b>${button('data-shapes-close="1"', 'Close shapes', icon('close'))}</div><div class="pal-shape-grid"></div><button class="pal-all-shapes" data-expand="1">All shapes and icons ${icon('chevron')}</button></div><div class="pal-list"></div>`;
   root.querySelector('#palSearch').addEventListener('input', e => { query = e.target.value.trim().toLowerCase(); list(); });
   root.addEventListener('click', e => {
     if (e.target.closest('.pal-toggle')) { setPaletteCollapsed(!collapsed); return; }
     if (e.target.closest('[data-expand]')) { setPaletteCollapsed(false); root.querySelector('#palSearch')?.focus(); return; }
-    const b = e.target.closest('[data-k]'); if (b) { setPlacing(b.dataset.k); return; }
-    if (e.target.closest('[data-img]')) import('./inspector.js').then(m => m.pickImage((src) => { const img = new Image(); img.onload = () => { const s = Math.min(1, 400 / Math.max(img.width, img.height)); addKindAt('image', null, null, { w: img.width * s, h: img.height * s, props: { src } }); }; img.src = src; }));
+    if (e.target.closest('[data-shapes]')) { setShapesOpen(root.querySelector('#palShapes').hidden); return; }
+    if (e.target.closest('[data-shapes-close]')) { setShapesOpen(false); root.querySelector('[data-shapes]')?.focus(); return; }
+    const tool = e.target.closest('[data-tool]'); if (tool) { setTool(tool.dataset.tool); setShapesOpen(false); return; }
+    const b = e.target.closest('[data-k]'); if (b) { setPlacing(b.dataset.k); setShapesOpen(false); return; }
+    if (e.target.closest('[data-img]')) import('./inspector.js').then(m => m.pickImage((src) => { const img = new Image(); img.onload = () => { const s = Math.min(1, 400 / Math.max(img.width, img.height)); addKindAt('image', null, null, { w: img.width * s, h: img.height * s, props: { src } }); setTool('select'); }; img.src = src; }));
     const more = e.target.closest('[data-more]'); if (more) { expanded.add(more.dataset.more); list(); return; }
-    const it = e.target.closest('[data-kind]'); if (it) addKindAt(it.dataset.kind);
+    const it = e.target.closest('[data-kind]'); if (it) { addKindAt(it.dataset.kind); setTool('select'); }
   });
   root.addEventListener('dragstart', e => { const it = e.target.closest('[data-kind]'); if (it) e.dataTransfer.setData('text/orim-kind', it.dataset.kind); });
   const stage = document.getElementById('stage');
-  stage.addEventListener('drop', e => { const k = e.dataTransfer.getData('text/orim-kind'); if (k) { e.preventDefault(); dropKind(k, e.clientX, e.clientY); } });
+  stage.addEventListener('drop', e => { const k = e.dataTransfer.getData('text/orim-kind'); if (k) { e.preventDefault(); dropKind(k, e.clientX, e.clientY); setTool('select'); } });
   onKindsChanged(list);
+  onViewChanged(syncTools);
   window.addEventListener('themechange', list);
+  document.addEventListener('pointerdown', e => { if (!root.contains(e.target)) setShapesOpen(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') setShapesOpen(false); });
   list();
+  syncTools();
   let pref = null; try { pref = localStorage.getItem('orim.palCollapsed'); } catch (_) {}
   if (pref === '1') setPaletteCollapsed(true);
+}
+
+function setShapesOpen(open) {
+  if (!root) return;
+  root.querySelector('#palShapes').hidden = !open;
+  root.querySelector('[data-shapes]').setAttribute('aria-expanded', String(open));
+}
+
+function syncTools() {
+  if (!root) return;
+  for (const b of root.querySelectorAll('[data-k], [data-tool], [data-shapes]')) {
+    const on = b.dataset.k ? view.placing === b.dataset.k : b.dataset.tool ? !view.placing && view.tool === b.dataset.tool : !!view.placing && !['note', 'text'].includes(view.placing);
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  }
 }
 
 const captioned = k => !!(k && (k.pack || k.category === 'icons'));
 
 function list() {
   if (!root) return;
+  root.querySelector('.pal-shape-grid').innerHTML = ['rect', 'ellipse', 'diamond', 'triangle', 'pill', 'hexagon'].filter(getKind).map(k => `<button type="button" data-k="${k}" title="${getKind(k).name}" aria-label="${getKind(k).name}">${kindPreview(k, 38)}</button>`).join('');
   const groups = new Map();
   for (const k of allKinds()) {
     if (query && !(`${k.id} ${k.name} ${(k.tags || []).join(' ')} ${k.description || ''}`.toLowerCase().includes(query))) continue;
@@ -78,4 +116,5 @@ function list() {
   const cats = [...groups.keys()].sort((a, b) => (ORDER.indexOf(a) + 1 || 99) - (ORDER.indexOf(b) + 1 || 99));
   const LIMIT = 24;
   root.querySelector('.pal-list').innerHTML = cats.map(c => { const all = groups.get(c), list = query || expanded.has(c) || all.length <= LIMIT + 8 ? all : all.slice(0, LIMIT); return `<div class="pal-cat"><h5>${c === 'learned' ? '★ Learned' : c}<small>${all.length}</small></h5><div class="pal-grid${captioned(all[0]) ? ' captions' : ''}">${list.map(k => `<div class="pal-item${k.learned ? ' learned' : ''}" data-kind="${k.id}" draggable="true" title="${(k.name + ' — ' + (k.description || '')).replace(/"/g, '&quot;')}">${kindPreview(k.id, captioned(k) ? 36 : 44)}${captioned(k) ? `<span class="cap">${k.name.replace(/</g, '&lt;')}</span>` : ''}</div>`).join('')}</div>${list.length < all.length ? `<button class="pal-more" data-more="${c}">Show all ${all.length}</button>` : ''}</div>`; }).join('') || '<p class="muted">No shapes match.</p>';
+  syncTools();
 }

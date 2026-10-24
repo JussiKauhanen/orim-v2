@@ -12,6 +12,9 @@
 <link rel="stylesheet" href="css/navigation.css">
 <link rel="stylesheet" href="css/settings.css">
 <link rel="stylesheet" href="css/toolbar.css">
+<link rel="stylesheet" href="css/palette.css">
+<link rel="stylesheet" href="css/ai-chat.css">
+<link rel="stylesheet" href="css/replicate.css">
 </head>
 <body>
 
@@ -32,7 +35,7 @@
         <span>Agents rebuild it as an editable diagram that matches the original — shapes, colours, fonts, lines. Shapes it does not know yet are designed and added to the library.</span>
         <input type="file" id="fileIn" accept="image/*" hidden>
       </div>
-      <p id="keyNote" class="note" hidden>Add an API key in <a href="#" onclick="document.getElementById('homeSettings').click();return false">Settings</a> to use Claude, OpenAI, or Gemini. Templates and the editor work without it.</p>
+      <p id="keyNote" class="note" hidden>Add an API key in <a href="#" onclick="document.getElementById('homeSettings').click();return false">Settings</a> to use Claude, ChatGPT (OpenAI), or Gemini. Templates and the editor work without it.</p>
       <div class="hero-actions"><button class="btn" id="newBlank"><span data-icon="draw"></span>New blank diagram</button><span id="libStats" class="muted"></span></div>
     </section>
     <h3>Templates</h3>
@@ -53,7 +56,7 @@
     <div class="sep"></div>
     <button class="ib" id="zoomOut" title="Zoom out" aria-label="Zoom out" data-icon="minus"></button><button class="ib wide" id="zoomFit" title="Fit (⌘0)">Fit</button><button class="ib" id="zoomIn" title="Zoom in" aria-label="Zoom in" data-icon="plus"></button>
     <div id="srcCtl" class="srcctl" hidden>
-      <div class="seg" id="viewSeg"><button data-view="diagram" title="Your editable diagram (V)">Diagram</button><button data-view="source" title="The original image you replicated (V)">Original</button><button data-view="both" title="Original laid over the diagram to compare">Compare</button></div>
+      <div class="seg" id="viewSeg"><button data-view="diagram" title="Your editable diagram (⇧V)">Diagram</button><button data-view="both" title="Compare the image with your diagram (⇧V)">Compare</button></div>
       <input type="range" id="blendSlider" min="0.1" max="0.9" step="0.05" title="How much of the original shows through" hidden>
     </div>
     <div class="grow"></div>
@@ -68,40 +71,27 @@
   <aside id="palette" class="palette"></aside>
   <main id="stage" class="stage"></main>
   <aside id="side" class="side" aria-label="Diagram workspace" aria-hidden="true">
-    <div class="side-heading"><div class="tabs"><button data-side="inspect" class="on">Properties</button><button data-side="agents">AI workspace</button></div><button id="sideClose" class="ib" title="Collapse right panel" aria-label="Collapse right panel" data-icon="close"></button></div>
-    <div id="inspector" class="inspector"></div>
-    <section id="aiWorkspace" hidden>
-      <div class="ai-workspace-intro"><div><b>A little help for your canvas</b><p>Start, change, or fine-tune.</p></div><button class="btn ghost small" id="aiSettings">Setup</button></div>
-      <div class="ai-workspace-actions">
-        <button class="btn workspace-action" id="askBtn"><span data-icon="draw"></span><span><b class="action-title">Ask AI</b><small>Describe a diagram or a change</small></span></button>
-        <button class="btn workspace-action" id="replicateBtn"><span data-icon="image"></span><span><b class="action-title">Replicate an image</b><small>Turn a picture into editable shapes</small></span></button>
-        <button class="btn workspace-action" id="refineBtn" hidden><span data-icon="refine"></span><span><b class="action-title">Refine</b><small>Match the original more closely</small></span></button>
-      </div>
-      <div id="agents" class="agents"></div>
-    </section>
+    <div class="side-heading"><div class="tabs" role="tablist" aria-label="Canvas panels"><button id="aiTab" data-side="ai" role="tab" aria-controls="aiWorkspace" aria-selected="false" tabindex="-1"><span data-icon="ai"></span>AI</button><button id="agentsTab" data-side="agents" role="tab" aria-controls="agents" aria-selected="false" tabindex="-1">Agents</button><button id="propertiesTab" data-side="inspect" class="on" role="tab" aria-controls="inspector" aria-selected="true">Properties</button></div><button id="sideClose" class="ib" title="Collapse right panel" aria-label="Collapse right panel" data-icon="close"></button></div>
+    <section id="aiWorkspace" role="tabpanel" aria-labelledby="aiTab" hidden></section>
+    <div id="agents" class="agents" role="tabpanel" aria-labelledby="agentsTab" hidden></div>
+    <div id="inspector" class="inspector" role="tabpanel" aria-labelledby="propertiesTab"></div>
   </aside>
 </div>
 
 <!-- DIALOGS -->
-<dialog id="repDlg" class="dlg">
+<dialog id="repDlg" class="dlg replicate-dialog">
   <form method="dialog">
     <h2><span data-icon="ai"></span>Replicate this image</h2>
-    <div class="rep-grid"><img id="repPreview" alt=""><div>
+    <div class="rep-image-choice"><label for="repImageSelect">Image to replicate</label><div><select id="repImageSelect"><option value="">Choose an image…</option></select><button type="button" id="repChooseFile" class="btn">Upload image…</button><input type="file" id="repFile" accept="image/*" hidden></div></div>
+    <div class="rep-grid"><div class="rep-crop"><div class="rep-crop-frame"><div id="repCropEmpty">Choose an image to preview and crop.</div><div id="repCropSurface" tabindex="0" role="group" aria-label="Image crop area" hidden><img id="repPreview" alt="Image to replicate" draggable="false"><svg id="repCropOverlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div></div><div class="rep-crop-footer"><span id="repCropHint" role="status"></span><button type="button" id="repCropReset">Use full image</button></div></div><div>
       <label class="f wide"><span>Instructions (optional)</span><textarea id="repInstr" rows="3" placeholder="e.g. use Inter for all text, the arrows are curved"></textarea></label>
       <label class="f wide"><span>Critic rounds</span><input type="number" id="repIter" min="0" max="10"></label>
       <label class="chk"><input type="checkbox" id="repDesign"> Design missing shapes and add them to the library</label>
       <label class="chk"><input type="checkbox" id="repDiagramOnly"> Diagram only (skip app UI and toolbars around it)</label>
       <p id="repKeyWarn" class="err" hidden>Add an API key in Settings first.</p>
     </div></div>
-    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn ai-primary" id="repGo"><span data-icon="ai"></span>Replicate</button></div>
+    <div class="dlg-actions"><button type="button" class="btn" data-close>Cancel</button><button class="btn ai-primary" id="repGo" disabled><span data-icon="ai"></span>Replicate</button></div>
   </form>
-</dialog>
-
-<dialog id="askDlg" class="dlg">
-  <form method="dialog"><h2>Ask AI to change the diagram</h2>
-    <textarea id="askIn" rows="3" placeholder="e.g. make all connectors dashed and add a legend at the bottom"></textarea>
-    <div id="askStyleWrap" hidden><span class="muted small">Style to follow (optional) — pick a template and the AI matches its look</span><div id="askStyles" class="tpl-pick"></div></div>
-    <div class="dlg-actions"><button class="btn" data-close>Cancel</button><button class="btn ai-primary" id="askGo"><span data-icon="ai"></span>Apply</button></div></form>
 </dialog>
 
 <dialog id="setDlg" class="dlg settings-dialog"></dialog>

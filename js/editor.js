@@ -3,7 +3,7 @@
 
 import { state, change, beginChange, endChange, emit, onChange, select, clearSelection, toggleSelect, selected, makeElement, uid, clone, undo, redo } from './store.js';
 import { elementSvg, pageSvg, indexDoc } from './render.js';
-import { getKind, scopeFor, textBox } from './kinds.js';
+import { getKind, scopeFor, textBox, onKindsChanged } from './kinds.js';
 import { bounds, unionBounds, toLocal, toWorld, connectorPoints, endpoint, distToPoly, rotatePt } from './geom.js';
 import { onFontsChanged, ensureFont, fontStack } from './text.js';
 import { initMinimap } from './minimap.js';
@@ -31,7 +31,7 @@ export function initEditor(root) {
   svg.addEventListener('wheel', onWheel, { passive: false });
   svg.addEventListener('dragover', e => e.preventDefault());
   window.addEventListener('keydown', onKey);
-  window.addEventListener('keyup', e => { if (e.code === 'Space') { spaceDown = false; svg.style.cursor = ''; } });
+  window.addEventListener('keyup', e => { if (e.code === 'Space') { spaceDown = false; svg.style.cursor = view.placing ? 'crosshair' : view.tool === 'hand' ? 'grab' : ''; } });
   window.addEventListener('resize', () => applyCamera());
   window.addEventListener('blur', onUp);
   window.addEventListener('themechange', () => { render(); placeTextEd(); });
@@ -40,6 +40,7 @@ export function initEditor(root) {
   textEd.addEventListener('input', sizeTextEd);
   onChange(what => { if (what === 'doc') { stopEdgeTracking(); nodes.clear(); content.innerHTML = ''; fitPage(); } render(); });
   onFontsChanged(() => { nodes.clear(); content.innerHTML = ''; render(); });
+  onKindsChanged(() => { nodes.clear(); content.innerHTML = ''; render(); });
   initMinimap(stage, { cam, view, applyCamera, onViewChanged, beforeNavigate: stopEdgeTracking });
 }
 
@@ -425,7 +426,7 @@ function onUp(e) {
   svg.removeEventListener('pointercancel', onUp);
   svg.removeEventListener('lostpointercapture', onUp);
   const cancelled = e.type !== 'pointerup';
-  const d = drag; drag = null; guides = []; svg.style.cursor = spaceDown ? 'grab' : '';
+  const d = drag; drag = null; guides = []; svg.style.cursor = spaceDown || view.tool === 'hand' ? 'grab' : view.placing ? 'crosshair' : '';
   if (!d) return;
   if (d.type === 'marquee') {
     if (marquee && !cancelled) {
@@ -487,7 +488,8 @@ function onWheel(e) {
 }
 
 // ---------- placing new elements ----------
-export function setPlacing(kindId) { view.placing = kindId; svg.style.cursor = kindId ? 'crosshair' : ''; viewChanged(); }
+export function setTool(tool) { view.tool = tool === 'hand' ? 'hand' : 'select'; view.placing = null; svg.style.cursor = view.tool === 'hand' ? 'grab' : ''; viewChanged(); }
+export function setPlacing(kindId) { view.placing = kindId; if (kindId) view.tool = 'select'; svg.style.cursor = kindId ? 'crosshair' : view.tool === 'hand' ? 'grab' : ''; viewChanged(); }
 function placeKind(kindId, wx, wy, e) {
   const el = makeElement(kindId);
   el.x = wx - el.w / 2; el.y = wy - el.h / 2;
@@ -638,9 +640,10 @@ export function align(how) {
 }
 
 function onKey(e) {
-  if (!state.doc || document.getElementById('app').hidden) return;
+  if (e.defaultPrevented || !state.doc || document.getElementById('app').hidden || e.target.closest?.('dialog[open]')) return;
   const tag = (e.target.tagName || '').toLowerCase();
   if (tag === 'input' || tag === 'textarea' || tag === 'select' || e.target.isContentEditable) return;
+  if (tag === 'button' && (e.key === 'Enter' || e.code === 'Space' || e.key.startsWith('Arrow'))) return;
   const mod = e.metaKey || e.ctrlKey;
   if (e.code === 'Space' && !spaceDown) { spaceDown = true; svg.style.cursor = 'grab'; e.preventDefault(); return; }
   if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
@@ -655,7 +658,8 @@ function onKey(e) {
   if (mod && e.key === '-') { e.preventDefault(); zoomBy(1 / 1.2); return; }
   if (mod && e.key === '0') { e.preventDefault(); fitPage(); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelection(); return; }
-  if (e.key === 'Escape') { setPlacing(null); clearSelection(); return; }
+  if (e.key === 'Escape') { setTool('select'); clearSelection(); return; }
+  if (!mod && !e.altKey && !e.shiftKey && ['v', 'h'].includes(e.key.toLowerCase())) { e.preventDefault(); setTool(e.key.toLowerCase() === 'h' ? 'hand' : 'select'); return; }
   if (e.key === ']') { reorder(mod ? 'front' : 'forward'); return; }
   if (e.key === '[') { reorder(mod ? 'back' : 'backward'); return; }
   if (e.key === 'Enter' && state.selection.size === 1) { e.preventDefault(); editText([...state.selection][0]); return; }
