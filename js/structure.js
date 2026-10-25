@@ -46,7 +46,7 @@ export function lineReader() {
 // Returns what happened, for flashes and the reply's change list.
 export function applyItem(doc, it, pending = []) {
   if (it.title) { if (!doc.name || /^untitled/i.test(doc.name)) doc.name = String(it.title).slice(0, 80); return null; }
-  if (it.layout) { doc.layoutDir = it.layout === 'down' ? 'down' : 'right'; return null; }
+  if (it.layout) { doc.layoutDir = doc.layoutAsked = it.layout === 'down' ? 'down' : 'right'; return null; }
   if (it.remove) return removeItem(doc, String(it.remove));
   if (it.group || it.node) return upsertShape(doc, it);
   if (it.edge) { const r = upsertEdge(doc, it); if (!r) pending.push(it); return r; }
@@ -182,7 +182,8 @@ export async function computeLayout(doc, { dir: want } = {}) {
   for (const el of shapes) {
     const icon = isIcon(el);
     const n = { id: el.id, width: el.w, height: el.h, children: [], layoutOptions: {} };
-    if (icon && label(el)) { n.labels = [{ text: label(el), width: Math.min(150, textWidth(label(el), 12.5) + 8), height: 34 }]; n.layoutOptions['elk.nodeLabels.placement'] = 'OUTSIDE V_BOTTOM H_CENTER'; }
+    // icon labels go below in horizontal flows and beside the icon in vertical ones, out of the links' way
+    if (icon && label(el)) { n.labels = [{ text: label(el), width: Math.min(150, textWidth(label(el), 12.5) + 10), height: dir === 'DOWN' ? 32 : 34 }]; n.layoutOptions['elk.nodeLabels.placement'] = dir === 'DOWN' ? 'OUTSIDE V_CENTER H_RIGHT' : 'OUTSIDE V_BOTTOM H_CENTER'; }
     if (el.st === 'group') Object.assign(n.layoutOptions, { 'elk.padding': '[top=50,left=22,bottom=22,right=22]', 'elk.nodeSize.constraints': 'MINIMUM_SIZE', 'elk.nodeSize.minimum': `(${Math.max(160, textWidth(label(el), 13) + 40)},90)` });
     if (el.st === 'group') { delete n.width; delete n.height; }
     node.set(el.id, n);
@@ -209,12 +210,22 @@ export async function computeLayout(doc, { dir: want } = {}) {
 }
 
 // Lay out both ways and keep the one that shows larger in a view of this aspect ratio
-// (width / height). The model's own choice wins unless the other is clearly better.
+// (width / height). Flows read best left to right, so that wins unless top to bottom is clearly
+// bigger on screen; when the model asked for top to bottom (hierarchies), that wins unless
+// left to right is better.
 export async function bestLayout(doc, aspect = 1.6) {
-  const pref = doc.layoutDir === 'down' ? 'down' : 'right', other = pref === 'down' ? 'right' : 'down';
-  const [a, b] = await Promise.all([computeLayout(doc, { dir: pref }), computeLayout(doc, { dir: other })]);
+  const [right, down] = await Promise.all([computeLayout(doc, { dir: 'right' }), computeLayout(doc, { dir: 'down' })]);
   const fit = lay => { const bs = [...lay.boxes.values()]; if (!bs.length) return 1; const w = Math.max(...bs.map(v => v.x + v.w)) - Math.min(...bs.map(v => v.x)), h = Math.max(...bs.map(v => v.y + v.h)) - Math.min(...bs.map(v => v.y)); return Math.min(aspect / w, 1 / h); };
-  return fit(b) > fit(a) * 1.05 ? { lay: b, dir: other } : { lay: a, dir: pref };
+  const useDown = doc.layoutAsked === 'down' ? fit(right) <= fit(down) * 1.05 : fit(down) > fit(right) * 1.3;
+  return useDown ? { lay: down, dir: 'down' } : { lay: right, dir: 'right' };
+}
+
+// Icon labels follow the layout direction (see computeLayout).
+export function placeLabels(doc) {
+  for (const el of doc.elements) if (el.st === 'node' && getKind(el.kind)?.pack) {
+    if (doc.layoutDir === 'down') { el.labelSide = 'right'; el.text = { ...el.text, align: 'left', valign: 'middle' }; }
+    else if (el.labelSide) { delete el.labelSide; el.text = { ...el.text, align: 'center', valign: 'top' }; }
+  }
 }
 
 // Apply a layout. With `keep`, elements already on the canvas stay where they are and new ones
@@ -250,7 +261,7 @@ export function fitGroups(doc) {
   const groups = doc.elements.filter(e => e.st === 'group').sort((a, b) => depthOf(doc, b) - depthOf(doc, a));
   for (const g of groups) {
     const kids = doc.elements.filter(e => e.parent === g.id && e.kind !== 'connector'); if (!kids.length) continue;
-    const bs = kids.map(k => { const b = bounds(k, doc); return isIcon(k) ? { x: b.x - 40, y: b.y, w: b.w + 80, h: b.h + 34 } : b; });
+    const bs = kids.map(k => { const b = bounds(k, doc); return !isIcon(k) ? b : k.labelSide === 'right' ? { x: b.x, y: b.y, w: b.w + 160, h: b.h } : { x: b.x - 40, y: b.y, w: b.w + 80, h: b.h + 34 }; });
     const x0 = Math.min(g.x, ...bs.map(b => b.x - 22)), y0 = Math.min(g.y, ...bs.map(b => b.y - 50));
     const x1 = Math.max(g.x + g.w, ...bs.map(b => b.x + b.w + 22)), y1 = Math.max(g.y + g.h, ...bs.map(b => b.y + b.h + 22));
     Object.assign(g, { x: x0, y: y0, w: x1 - x0, h: y1 - y0 });

@@ -8,7 +8,7 @@ import { state, emit, beginChange, endChange, scheduleSave } from '../store.js';
 import { indexDoc, framed } from '../render.js';
 import { bounds, unionBounds } from '../geom.js';
 import { flash, animateTo, panTo } from '../editor.js';
-import { lineReader, applyItem, retryPending, serialize, computeLayout, bestLayout, layoutTargets, fitGroups, sortLayers, anchorsFor, fullyStructured, isGroup } from '../structure.js';
+import { lineReader, applyItem, retryPending, serialize, computeLayout, bestLayout, placeLabels, layoutTargets, fitGroups, sortLayers, anchorsFor, fullyStructured, isGroup } from '../structure.js';
 
 // Lay out structured content: all of it, or (hand-arranged diagrams) only what is new.
 function makeLayout(doc, keep, { fresh = false, view = null } = {}) {
@@ -24,6 +24,7 @@ function makeLayout(doc, keep, { fresh = false, view = null } = {}) {
     let lay;
     if (final && !keep) { const best = await bestLayout(doc, aspect()); lay = best.lay; doc.layoutDir = best.dir; }
     else lay = await computeLayout(doc);
+    placeLabels(doc);
     if (state.doc !== doc) return;
     const { target, points } = layoutTargets(doc, lay, { keep, origin: start });
     // links follow their shapes during the move, then take the routed path
