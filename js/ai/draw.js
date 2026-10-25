@@ -8,23 +8,17 @@ import { state, emit, beginChange, endChange, scheduleSave } from '../store.js';
 import { indexDoc, framed } from '../render.js';
 import { bounds, unionBounds } from '../geom.js';
 import { flash, animateTo, panTo } from '../editor.js';
-import { lineReader, applyItem, retryPending, serialize, computeLayout, bestLayout, placeLabels, layoutTargets, fitGroups, sortLayers, anchorsFor, fullyStructured, isGroup } from '../structure.js';
+import { lineReader, applyItem, retryPending, serialize, computeLayout, layoutTargets, fitGroups, sortLayers, anchorsFor, fullyStructured, isGroup } from '../structure.js';
 
 // Lay out structured content: all of it, or (hand-arranged diagrams) only what is new.
 function makeLayout(doc, keep, { fresh = false, view = null } = {}) {
   let busy = null, again = false, timer = 0;
   const origin = () => { const b = unionBounds(doc.elements.filter(e => e.st && e.kind !== 'connector').map(e => bounds(e, doc))); return b ? { x: Math.max(40, b.x), y: Math.max(40, b.y) } : null; };
   const start = origin();
-  // the visible canvas (beside the AI panel), for choosing the layout direction
-  const aspect = () => { const r = document.getElementById('stage')?.getBoundingClientRect(); const w = (r?.width || 1200) - (view?.() || 0); return Math.max(.5, w / Math.max(1, r?.height || 800)); };
-  async function once(final) {
+  async function once() {
     sortLayers(doc); indexDoc(doc);
     if (!doc.elements.some(e => e.st && e.kind !== 'connector')) return;
-    // while lines stream in the direction stays put; the last pass picks the better one and keeps it
-    let lay;
-    if (final && !keep) { const best = await bestLayout(doc, aspect()); lay = best.lay; doc.layoutDir = best.dir; }
-    else lay = await computeLayout(doc);
-    placeLabels(doc);
+    const lay = await computeLayout(doc);
     if (state.doc !== doc) return;
     const { target, points } = layoutTargets(doc, lay, { keep, origin: start });
     // links follow their shapes during the move, then take the routed path
@@ -43,9 +37,8 @@ function makeLayout(doc, keep, { fresh = false, view = null } = {}) {
     // keep a new drawing in view while it grows
     if (b && view) panTo(b, { right: view(), pad: 60 });
   }
-  let wantFinal = false;
-  async function run() { if (busy) { again = true; return busy; } const final = wantFinal; wantFinal = false; busy = once(final).catch(e => console.warn(e)); await busy; busy = null; if (again) { again = false; return run(); } }
-  return { soon() { clearTimeout(timer); timer = setTimeout(run, 120); }, async now() { clearTimeout(timer); if (busy) await busy; wantFinal = true; await run(); } };
+  async function run() { if (busy) { again = true; return busy; } busy = once().catch(e => console.warn(e)); await busy; busy = null; if (again) { again = false; return run(); } }
+  return { soon() { clearTimeout(timer); timer = setTimeout(run, 120); }, async now() { clearTimeout(timer); await run(); if (busy) await busy; } };
 }
 
 export async function draw({ instructions = '', image = null, selection = [], viewRight = () => 0 } = {}) {
@@ -109,6 +102,8 @@ export async function tidy() {
   const groups = doc.elements.filter(e => e.kind !== 'connector' && isGroup(e));
   for (const el of doc.elements) {
     if (el.ghost || el.hidden) continue;
+    // undo side labels left by an earlier layout version
+    if (el.labelSide) { delete el.labelSide; el.text = { ...el.text, align: 'center', valign: 'top' }; }
     if (el.kind === 'connector') { if (el.from?.id && el.to?.id) el.st = 'edge'; continue; }
     if (!el.st) el.st = isGroup(el) ? 'group' : 'node';
     if (!el.parent) {
@@ -118,7 +113,7 @@ export async function tidy() {
     }
   }
   doc.manualLayout = false;
-  await makeLayout(doc, null, { view: () => { const p = document.getElementById('aiPanel'); return p && !p.hidden && innerWidth > 900 ? p.offsetWidth + 24 : 0; } }).now();
+  await makeLayout(doc, null).now();
   endChange();
 }
 

@@ -96,8 +96,6 @@ export function shapeSvg(el, kind, scope) {
 }
 
 export function textBox(el, kind, scope) {
-  // an icon's label can sit to its right instead of below (vertical layouts, where links leave downwards)
-  if (el.labelSide === 'right' && kind.pack) return { x: el.w + 8, y: 0, w: 150, h: el.h };
   const tb = kind.textBox;
   if (!tb) return { x: 0, y: 0, w: el.w, h: el.h };
   return { x: num(tb[0], scope), y: num(tb[1], scope), w: Math.max(4, num(tb[2], scope)), h: Math.max(4, num(tb[3], scope)) };
