@@ -40,7 +40,8 @@
 .aip-turn + .aip-turn { margin-top: 22px; }
 @keyframes aip-turn-in { from { opacity: 0; transform: translateY(6px); } }
 .aip-user { display: grid; justify-items: end; gap: 4px; margin: 0 0 12px 36px; }
-.aip-user p { margin: 0; padding: 9px 13px; border-radius: 16px 16px 4px 16px; background: var(--accent); color: #fff; font-size: 13px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.aip-user p { margin: 0; padding: 9px 14px; border-radius: 16px; background: var(--chip-bg); color: var(--text); font-size: 13.5px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
+.aip-user-img { max-width: 180px; max-height: 120px; border-radius: 12px; border: 1px solid var(--line); object-fit: cover; }
 .aip-user-ctx { font-size: 10.5px; color: var(--muted); }
 
 .aip-reply { font-size: 12.5px; }
@@ -109,6 +110,34 @@
 .aip-reply.error .aip-final { color: var(--danger); }
 .aip-actions { display: flex; flex-wrap: wrap; gap: 6px; }
 .aip-help .ai-billing-help { margin: 0 0 10px; }
+
+/* a structured draw reads like a chat reply */
+.aip-turn.draw .aip-say { font-family: ui-serif, "New York", Georgia, serif; font-size: 15px; line-height: 1.6; color: var(--text); }
+.aip-say p { margin: 0 0 10px; overflow-wrap: anywhere; }
+.aip-say .aip-thinking { color: var(--muted); font-family: var(--font); font-size: 12.5px; font-style: italic; animation: aip-live-in .3s ease-out; }
+.aip-activity { display: flex; align-items: center; gap: 8px; width: 100%; margin: 2px 0 8px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--muted); font-size: 12px; text-align: left; cursor: pointer; }
+.aip-activity:hover { background: var(--hover); color: var(--text); }
+.aip-act-text { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.aip-activity time { font-size: 11px; font-variant-numeric: tabular-nums; }
+.aip-activity > .ui-icon { width: 11px; height: 11px; transform: rotate(90deg); transition: transform .15s; }
+.aip-activity[aria-expanded="true"] > .ui-icon { transform: rotate(-90deg); }
+.aip-act-state { display: grid; place-items: center; width: 14px; height: 14px; flex: none; }
+.aip-act-state > * { display: none; grid-area: 1 / 1; }
+.aip-act-state svg { width: 14px; height: 14px; }
+.aip-activity.running .spin { display: block; width: 11px; height: 11px; border: 2px solid var(--accent); border-right-color: transparent; border-radius: 50%; animation: aip-spin .8s linear infinite; }
+.aip-activity.done .aip-act-state svg:first-of-type { display: block; color: var(--ok); }
+.aip-activity:is(.error, .stopped) .aip-act-state svg:last-of-type { display: block; color: var(--danger); }
+.aip-changes { list-style: none; margin: -4px 0 10px; padding: 4px; border: 1px solid var(--line); border-top: 0; border-radius: 0 0 10px 10px; max-height: 220px; overflow: auto; }
+.aip-changes button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 6px; border: 0; border-radius: 6px; background: transparent; font-size: 12px; text-align: left; cursor: pointer; }
+.aip-changes button:hover:not(:disabled) { background: var(--hover); }
+.aip-changes button:disabled { cursor: default; color: var(--muted); text-decoration: line-through; }
+.aip-changes i { width: 7px; height: 7px; flex: none; border-radius: 50%; background: var(--accent); }
+.aip-changes .add i { background: #16a34a; } .aip-changes .remove i { background: var(--danger); }
+.aip-changes small { margin-left: auto; color: var(--muted); font-size: 10.5px; }
+.aip-thumb { display: block; max-width: 100%; max-height: 150px; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; cursor: zoom-in; animation: aip-turn-in .3s ease-out both; }
+.aip-foot { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.aip-foot .aip-actions { flex: 1; }
+.aip-tokens { color: var(--muted); font-size: 10.5px; font-variant-numeric: tabular-nums; }
 
 /* composer */
 .aip-connect { display: flex; align-items: center; justify-content: space-between; margin: 0 12px 8px; padding: 9px 12px; border: 1px solid var(--accent); border-radius: 10px; background: var(--accent-soft); color: var(--accent); font-size: 12px; font-weight: 500; cursor: pointer; text-align: left; }

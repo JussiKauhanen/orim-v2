@@ -314,3 +314,7 @@ code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; font-size: 12p
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
 }
+/* shapes the AI adds fade and settle in */
+#content > g.el-appear { animation: el-appear .38s cubic-bezier(.2, .9, .3, 1.15) both; transform-box: fill-box; transform-origin: center; }
+@keyframes el-appear { from { opacity: 0; transform: scale(.86); } }
+@media (prefers-reduced-motion: reduce) { #content > g.el-appear { animation: none; } }

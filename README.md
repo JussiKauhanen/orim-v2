@@ -8,6 +8,14 @@ Static site, no build step: open `index.html` through any web server, or publish
 python3 tools/serve.py 8123
 ```
 
+## Drawing with AI
+
+Describe what you want to understand ("how does an AD group end up granting access in Azure?") and the AI draws it as **structure**: components, the boundaries that hold them (on-premises, a subscription, a network) and numbered links. It replies with short JSON lines instead of coordinates, so a first diagram streams in within seconds; each shape fades in and flashes green as it arrives, and [ELK](https://github.com/kieler/elkjs) lays everything out, with groups really containing their nodes and links routed around them. Every component carries a one-sentence note on what it is and why it is there, shown under the toolbar when you select it.
+
+Follow-up requests ("add a Key Vault for the app") change only what they need and flash it: green for added, blue for changed. Once you have moved things by hand, later edits keep your arrangement and only place what is new; **Tidy up** (next to the zoom controls, or under a reply) lays the whole diagram out again, hand-drawn parts included. The reply reads like a chat: what the AI is doing, then one line that expands into the list of changes (click one to jump to it), a thumbnail, and the token count.
+
+**+** in the AI panel takes a picture. **Understand it** (default) reads the picture's meaning into the same editable structure; **Copy the exact look** runs the slower pixel-faithful replication described below. Requests with highlighter marks or a chosen style go to the visual editor.
+
 ## How a replication runs
 
 The AI works in a side panel on the right, one conversation per diagram. Each request appears as your message followed by a live reply listing the agents' steps as they happen: who is working, what they are doing, how long it has taken, and the latest line of their reasoning. Click a step for its summary, log, before/after images, reasoning and usage, or **Show on canvas** to fly to what it changed; hovering a step outlines its shapes. Finished replies fold their steps into one line, show the similarity trend, and offer **Undo** and **Refine again**. While the panel is closed, a small pill next to the AI button shows the active agent, with a Stop button.
@@ -70,7 +78,7 @@ node --test tests/llm.test.mjs
 
 ## Files
 
-- `js/` — editor (`editor.js`, `inspector.js`, `palette.js`, `minimap.js`, `context-toolbar.js`), settings (`settings-ui.js`), replication image picker/cropper (`replicate-image.js`), model (`store.js`, `kinds.js`, `render.js`, `geom.js`, `text.js`, `expr.js`), library (`library.js`), shared SVG controls (`icons.js`) and screen-only colours (`theme.js`)
-- `js/ai/` — `llm.js` (providers), `prompts.js`, `replicate.js` (pipeline), `vision.js` (measuring and scoring), `raster.js`, `chat-ui.js` (AI panel), `agent-meta.js`, `agent-presence.js`, `highlighter.js`, `mock.js`
+- `js/` — structured diagrams and auto-layout (`structure.js`), editor (`editor.js`, `inspector.js`, `palette.js`, `minimap.js`, `context-toolbar.js`), settings (`settings-ui.js`), replication image picker/cropper (`replicate-image.js`), model (`store.js`, `kinds.js`, `render.js`, `geom.js`, `text.js`, `expr.js`), library (`library.js`), shared SVG controls (`icons.js`) and screen-only colours (`theme.js`)
+- `js/ai/` — `llm.js` (providers), `prompts.js`, `replicate.js` (pipeline), `vision.js` (measuring and scoring), `raster.js`, `draw.js` (structured drawing and editing), `chat-ui.js` (AI panel), `agent-meta.js`, `agent-presence.js`, `highlighter.js`, `mock.js`
 - `tools/` — `serve.py` (no-cache dev server), `make-templates.mjs`, `make-icons.mjs`, `import-ms-icons.mjs`, `dev.js` (console helpers: measure a sample, score a template)
 - `old/` — the previous Mermaid-based orim, kept for reference

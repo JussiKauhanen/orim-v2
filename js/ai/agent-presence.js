@@ -58,7 +58,8 @@ export function initAgentPresence(stage) {
 
   function sync() {
     const doc = state.doc, run = doc && runFor(doc.id);
-    active = run?.status === 'running' ? run.steps.filter(s => s.status === 'running') : [];
+    // structured draws show themselves with flashes on the shapes, not cursors
+    active = run?.status === 'running' && run.kind !== 'draw' ? run.steps.filter(s => s.status === 'running') : [];
     const alive = new Set(active.map(s => s.id));
     // retire finished cursors first, so the next agent takes over from where they were
     for (const [id, p] of pointers) if (!alive.has(id) && !p.leaving) {

@@ -95,7 +95,7 @@ export function cost(model, usage) {
 export class AIError extends Error { constructor(code, msg) { super(msg); this.code = code; } }
 
 // content: array of {type:'text', text} | {type:'image', mime, data}
-export async function complete({ role = 'analyst', system, content, maxTokens = 32000, signal, onText, onThinking, model }) {
+export async function complete({ role = 'analyst', system, content, maxTokens = 32000, signal, onText, onThinking, model, effort }) {
   if (mockMode()) { const { mockComplete } = await import('./mock.js'); try { return await mockComplete({ role, system, content, onText, onThinking, signal }); } catch (e) { throw e.code ? new AIError(e.code, e.message) : e; } }
   const s = settings();
   const key = s.keys[s.provider];
@@ -103,7 +103,7 @@ export async function complete({ role = 'analyst', system, content, maxTokens = 
   model = model || s.roles[role];
   if (signal?.aborted) throw new AIError('aborted', 'Stopped.');
   try {
-    const args = { key, model, system, content, maxTokens, signal, onText, onThinking, effort: s.effort[role] || 'high' };
+    const args = { key, model, system, content, maxTokens, signal, onText, onThinking, effort: effort || s.effort[role] || 'high' };
     const res = s.provider === 'openai' ? await openAI(args) : s.provider === 'google' ? await gemini(args) : await claude(args);
     return { ...res, cost: cost(res.model, res.usage) };
   } catch (e) {

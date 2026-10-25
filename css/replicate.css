@@ -17,3 +17,11 @@
 .rep-crop-footer button { border: 0; background: transparent; color: var(--accent); font-size: 10px; padding: 0; cursor: pointer; }
 .rep-crop-footer button:disabled { opacity: .4; cursor: default; }
 @media (max-width: 620px) { .replicate-dialog .rep-grid { grid-template-columns: 1fr; } .replicate-dialog form { padding: 18px; } .rep-crop-frame { min-height: 130px; } .rep-grid #repPreview { max-height: 230px; } }
+.rep-mode { display: grid; gap: 6px; margin: 0; padding: 0; border: 0; }
+.rep-mode legend { padding: 0; margin-bottom: 6px; font-size: 11px; color: var(--muted); }
+.rep-mode label { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.rep-mode label:has(:checked) { border-color: var(--accent); background: var(--accent-soft); }
+.rep-mode input { margin-top: 3px; accent-color: var(--accent); }
+.rep-mode span { display: grid; gap: 2px; }
+.rep-mode small { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.replicate-dialog:has([name=repMode][value=structure]:checked) .rep-exact { display: none; }

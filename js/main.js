@@ -9,6 +9,7 @@ import { sceneSvg, indexDoc } from './render.js';
 import { ensureFont } from './text.js';
 import { initAIChat } from './ai/chat-ui.js';
 import { replicate, refine, onRun, current, stop, styleGuide } from './ai/replicate.js';
+import { draw, tidy, imagePart } from './ai/draw.js';
 import { settings, hasKey, mockMode } from './ai/llm.js';
 import { getKind, removeKind } from './kinds.js';
 import { svgWithFonts, renderToCanvas } from './ai/raster.js';
@@ -113,7 +114,8 @@ async function runReplicate() {
   $('#repDlg').close();
   openAI();
   setViewMode('diagram');
-  await replicate({ src, instructions: $('#repInstr').value.trim(), diagramOnly: $('#repDiagramOnly').checked, iterations: +$('#repIter').value, designKinds: $('#repDesign').checked });
+  if ($('#repDlg [name=repMode]:checked')?.value === 'exact') await replicate({ src, instructions: $('#repInstr').value.trim(), diagramOnly: $('#repDiagramOnly').checked, iterations: +$('#repIter').value, designKinds: $('#repDesign').checked });
+  else { let image; try { image = await imagePart(src); } catch (e) { toast(e.message); return; } await draw({ image, instructions: $('#repInstr').value.trim(), viewRight: aiPanelWidth }); }
   updateTop();
 }
 
@@ -158,6 +160,7 @@ function updateProviderMark() {
   $('#aiLauncher').innerHTML = providerMark(provider);
   $('#aiLauncher').title = `Ask ${providerNames[provider]}`;
 }
+const aiPanelWidth = () => { const p = $('#aiPanel'); return p && !p.hidden && innerWidth > 900 ? p.offsetWidth + 24 : 0; };
 function openAI() { welcomeDismissed = true; updateWelcome(); setAIExpanded(true); aiChat.focus(); }
 function chooseReplicationImage() {
   if (current?.status === 'running') return;
@@ -213,15 +216,18 @@ async function boot() {
     templates: () => lib.templates,
     onSettings: openSettings,
     onImage: (src, label) => { $('#imgDlgImg').src = src; $('#imgDlgCap').textContent = label; $('#imgDlg').showModal(); },
-    panelWidth: () => { const p = $('#aiPanel'); return p && !p.hidden ? p.offsetWidth + 24 : 0; },
+    panelWidth: aiPanelWidth,
     onAttach: chooseReplicationImage,
     onRefine: () => { if (!hasKey()) return openSettings(); openAI(); refine({ rounds: 1 }); },
+    onTidy: () => tidy(),
     onSend: (instructions, templateId, selection = []) => {
       if (!hasKey()) { openSettings(); return false; }
       const t = lib.templates.find(t => t.id === templateId);
       if (t) change(d => { d.page.background = t.doc.page.background; d.page.pattern = t.doc.page.pattern || null; });
       const highlights = highlighter.snapshot(); highlighter.setActive(false);
-      refine({ rounds: 1, instructions, style: t ? styleGuide(t.doc) : '', highlights, selection });
+      // highlighter marks and style references need the visual editor; everything else is drawn as structure
+      if (highlights.length || t) refine({ rounds: 1, instructions, style: t ? styleGuide(t.doc) : '', highlights, selection });
+      else draw({ instructions, selection, viewRight: aiPanelWidth });
       return true;
     },
   });
@@ -289,6 +295,7 @@ async function boot() {
   $('#blendSlider').addEventListener('input', e => setViewMode('both', +e.target.value));
   window.addEventListener('keydown', e => { if (e.shiftKey && e.key.toLowerCase() === 'v' && !e.metaKey && !e.ctrlKey && !$('#app').hidden && state.doc?.source && !/input|textarea|select/i.test(e.target.tagName)) { e.preventDefault(); e.stopImmediatePropagation(); setViewMode(view.mode === 'diagram' ? 'both' : 'diagram'); } }, true);
   $('#repGo').addEventListener('click', e => { e.preventDefault(); runReplicate(); });
+  $('#tidyBtn').addEventListener('click', () => { if (current?.status !== 'running') tidy(); });
   for (const b of document.querySelectorAll('[data-export]')) b.addEventListener('click', () => { $('#exportMenu').hidden = true; exportAs(b.dataset.export); });
   $('#exportBtn').addEventListener('click', e => { e.stopPropagation(); $('#exportMenu').hidden = !$('#exportMenu').hidden; });
   document.addEventListener('click', e => { if (!e.target.closest('#exportMenu')) $('#exportMenu').hidden = true; });

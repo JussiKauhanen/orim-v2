@@ -74,6 +74,37 @@ export function zoomBy(f, sx, sy) {
   cam.z = Math.max(0.05, Math.min(16, cam.z * f));
   cam.x = wx - sx / cam.z; cam.y = wy - sy / cam.z; applyCamera();
 }
+// ---------- AI feedback: fade-in, flashes and animated moves ----------
+const FLASH_MS = 1100, flashes = new Map(), appearing = new Set();
+let flashFrame = 0, animFrame = 0;
+export function flash(ids, tone = 'change') {
+  const now = performance.now();
+  for (const id of ids) { flashes.set(id, { t0: now, tone }); if (tone === 'add' && !nodes.has(id)) appearing.add(id); }
+  if (!flashFrame) flashFrame = requestAnimationFrame(flashTick);
+}
+function flashTick(now) {
+  flashFrame = 0;
+  for (const [id, f] of flashes) if (now - f.t0 > FLASH_MS) flashes.delete(id);
+  drawOverlay(); if (flashes.size) flashFrame = requestAnimationFrame(flashTick);
+}
+// Move elements to new boxes over a short ease-out, then call done.
+let animDone = null;
+export function animateTo(targets, ms = 240, done) {
+  cancelAnimationFrame(animFrame); animDone?.(); animDone = done;
+  const doc = state.doc, from = new Map();
+  for (const [id] of targets) { const el = doc.byId.get(id); if (el) from.set(id, { x: el.x, y: el.y, w: el.w, h: el.h }); }
+  const apply = k => { for (const [id, f] of from) { const el = doc.byId.get(id), t = targets.get(id); if (!el) continue; for (const p of ['x', 'y', 'w', 'h']) el[p] = f[p] + (t[p] - f[p]) * k; } emit('move'); };
+  // hidden tabs get no animation frames: jump straight to the end so the AI flow never waits
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches || !ms || document.hidden) { animDone = null; apply(1); done?.(); return; }
+  const t0 = performance.now();
+  const tick = now => {
+    if (state.doc !== doc) { animDone = null; done?.(); return; }
+    const t = Math.min(1, (now - t0) / ms); apply(1 - (1 - t) ** 3);
+    if (t < 1) animFrame = requestAnimationFrame(tick); else { animDone = null; done?.(); }
+  };
+  animFrame = requestAnimationFrame(tick);
+}
+
 // Glide the camera so a world box sits in the visible area (left of `right` px, e.g. a side panel).
 let panFrame = 0;
 export function panTo(b, { right = 0, pad = 80 } = {}) {
@@ -111,7 +142,7 @@ export function render() {
     seen.add(el.id);
     let n = nodes.get(el.id);
     const key = keyOf(el, doc) + (editingId === el.id ? '#edit' : '');
-    if (!n) { const g = document.createElementNS(NS, 'g'); g.dataset.id = el.id; n = { g, key: null }; nodes.set(el.id, n); }
+    if (!n) { const g = document.createElementNS(NS, 'g'); g.dataset.id = el.id; n = { g, key: null }; nodes.set(el.id, n); if (appearing.delete(el.id)) g.classList.add('el-appear'); }
     if (n.key !== key) {
       const shown = editingId === el.id ? { ...el, text: { ...el.text, content: '' } } : el;
       n.g.innerHTML = elementSvg(shown, doc, { hit: true }); n.key = key;
@@ -178,6 +209,15 @@ function drawOverlay() {
   for (const g of guides) o += `<path d="M${g[0]},${g[1]} L${g[2]},${g[3]}" stroke="#ff4fa3" stroke-width="${1 / z}"/>`;
   if (marquee) o += `<rect x="${Math.min(marquee[0], marquee[2])}" y="${Math.min(marquee[1], marquee[3])}" width="${Math.abs(marquee[2] - marquee[0])}" height="${Math.abs(marquee[3] - marquee[1])}" fill="rgba(79,124,255,0.08)" stroke="#4f7cff" stroke-width="${sw}"/>`;
   if (ghost) o += ghost;
+  // what the AI just added (green) or changed (blue): a ring that widens and fades
+  const now = performance.now();
+  for (const [id, f] of flashes) {
+    const el = doc.byId.get(id); if (!el) continue;
+    const p = Math.min(1, (now - f.t0) / FLASH_MS), col = f.tone === 'add' ? '#16a34a' : '#4f6bff', op = (1 - p) * (1 - p);
+    if (el.kind === 'connector') { const g = connectorPoints(el, doc); o += `<path d="M${g.pts.map(q => q.join(',')).join(' L')}" fill="none" stroke="${col}" stroke-opacity="${op * .45}" stroke-width="${(6 + 6 * p) / z}" stroke-linecap="round" stroke-linejoin="round"/>`; continue; }
+    const b = bounds(el, doc), pad = (3 + 9 * p) / z;
+    o += `<rect x="${b.x - pad}" y="${b.y - pad}" width="${b.w + pad * 2}" height="${b.h + pad * 2}" rx="${8 / z}" fill="${col}" fill-opacity="${op * .1}" stroke="${col}" stroke-opacity="${op}" stroke-width="${2 / z}"/>`;
+  }
   overlay.innerHTML = o;
 }
 const HANDLES = [['nw', 0, 0], ['n', 0.5, 0], ['ne', 1, 0], ['e', 1, 0.5], ['se', 1, 1], ['s', 0.5, 1], ['sw', 0, 1], ['w', 0, 0.5]];
@@ -271,6 +311,9 @@ function startMove(wx, wy, copy, extra = {}) {
   beginChange();
   if (copy) duplicateSelection(0, true);
   const moving = movingSet();
+  // laid-out routes stop fitting once only one end moves: switch those links to automatic elbows
+  const ids = new Set(moving.map(e => e.id));
+  for (const c of state.doc.elements) if (c.st === 'edge' && c.points && ids.has(c.from.id) !== ids.has(c.to.id)) { delete c.points; c.route = 'elbow'; c.from = { id: c.from.id }; c.to = { id: c.to.id }; }
   drag = { type: 'move', sx: wx, sy: wy, orig: moving.map(clone), moved: false, home: enclosureFor(moving), carried: moving.length - state.selection.size, ...extra };
 }
 // Topmost element under a world point: shapes by box, connectors by distance to the line.
@@ -565,6 +608,8 @@ function onUp(e) {
   }
   if (d.type === 'cend') connectTarget = null;
   if (d.type === 'pan') { drawOverlay(); return; }
+  // hand-arranged: later AI edits keep these positions instead of laying everything out again
+  if (['move', 'resize', 'mresize', 'rotate'].includes(d.type) && d.moved !== false && !cancelled && state.doc.elements.some(e => e.st)) state.doc.manualLayout = true;
   if (d.type === 'move') {
     if (d.moved && !cancelled) liftInto(dropTarget || enclosureFor(d.orig.map(o => state.doc.byId.get(o.id)).filter(Boolean)), d.orig.map(o => state.doc.byId.get(o.id)).filter(Boolean));
     dropTarget = null;

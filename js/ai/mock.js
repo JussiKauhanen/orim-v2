@@ -38,6 +38,39 @@ export async function mockComplete({ role, system, content, onText, onThinking, 
     await stream(text, onText, onThinking, `Looking at a ${m[1]}×${m[2]} image. It resembles "${t.name}". Listing ${els.length} elements back to front, matching palette colours, then connectors…`);
     return result(text);
   }
+  if (/^You help a solution architect/.test(system || '')) {
+    const editing = /Current diagram:/.test(prompt);
+    const lines = editing ? [
+      { say: 'Adding a Key Vault for the app secrets and marking the sync as scheduled (mock edit).' },
+      { node: 'kv', label: 'Key Vault', icon: 'azure:Key Vaults', in: 'azure', note: 'Keeps secrets out of app settings and code.' },
+      { edge: ['app', 'kv'], label: 'Reads secrets', dashed: true },
+      { edge: ['ad', 'entra'], label: '4. Sync every 30 min' },
+      { say: 'Secrets now live in one audited place instead of each app.' },
+    ] : [
+      { say: 'Here is how an on-premises AD group ends up granting access in Azure (mock).' },
+      { title: 'Entra dynamic group access' }, { layout: 'right' },
+      { group: 'onprem', label: 'On-premises', tone: 'onprem' },
+      { group: 'azure', label: 'Microsoft Entra & Azure', tone: 'azure' },
+      { node: 'user', label: 'Employee', shape: 'person', note: 'The person who needs access.' },
+      { node: 'sn', label: 'ServiceNow request', in: 'onprem', note: 'Self-service catalogue item that starts the approval.' },
+      { node: 'ad', label: 'AD group', icon: 'azure:Groups', in: 'onprem', note: 'On-premises security group the request adds the user to.' },
+      { node: 'connect', label: 'Entra Connect', in: 'onprem', note: 'Sync agent that copies users and groups to Entra ID.' },
+      { node: 'entra', label: 'Entra ID', icon: 'azure:Entra ID', in: 'azure', note: 'Cloud directory holding the synced user and memberOf.' },
+      { node: 'dyn', label: 'Dynamic group', icon: 'azure:Groups', in: 'azure', note: 'Its rule checks memberOf and adds matching users automatically.' },
+      { node: 'app', label: 'App Service', icon: 'azure:App Services', in: 'azure', note: 'The resource the dynamic group grants access to.' },
+      { edge: ['user', 'sn'], label: '1. Requests access' },
+      { edge: ['sn', 'ad'], label: '2. Adds to group' },
+      { edge: ['ad', 'connect'], label: '3. Change picked up' },
+      { edge: ['connect', 'entra'], label: '4. Syncs memberOf' },
+      { edge: ['entra', 'dyn'], label: '5. Rule matches' },
+      { edge: ['dyn', 'app'], label: '6. Role grants access' },
+      { say: 'Membership is managed in one place (AD); everything in Azure follows automatically.' },
+    ];
+    for (const part of 'Planning the groups and the order of the steps…'.match(/.{1,16}/g)) { onThinking && onThinking(part); await sleep(15); }
+    let text = '';
+    for (const l of lines) { if (signal?.aborted) throw Object.assign(new Error('Stopped.'), { code: 'aborted' }); const s = JSON.stringify(l) + '\n'; text += s; onText && onText(s); await sleep(110); }
+    return result(text);
+  }
   if (role === 'designer') {
     const kind = { id: 'mock-badge', name: 'Mock badge', category: 'learned', tags: ['badge', 'circle', 'mock'], description: 'Circle with an inner ring (designed by the mock designer)', size: [100, 100],
       style: { fill: '#f6c97f', fill2: '#ffffff', stroke: 'none', strokeWidth: 0 }, text: { size: 14, color: '#1f2328' },

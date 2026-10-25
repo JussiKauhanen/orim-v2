@@ -2,14 +2,15 @@
 // a live reply that lists the agents' steps as they work (who, what, how long, what they are
 // thinking right now); finished replies fold their steps away. While the panel is closed a
 // small status pill shows the active step.
-import { state, onChange, undo, selected } from '../store.js';
+import { state, onChange, undo, selected, select } from '../store.js';
 import { onRun, runFor, current, stop } from './replicate.js';
 import { hasKey, settings, modelInfo } from './llm.js';
 import { icon } from '../icons.js';
 import { providerMark, providerNames, billingHelp } from './provider-ui.js';
 import { stepIdentity, stepAction } from './agent-meta.js';
 import { hoverStep, stepBox } from './agent-presence.js';
-import { panTo } from '../editor.js';
+import { panTo, flash } from '../editor.js';
+import { bounds } from '../geom.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const svg = body => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
@@ -21,7 +22,7 @@ const G = {
   locate: '<circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>',
   selection: '<rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2.5"/>',
   undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
-  check: '<path d="m5 12 4 4L19 6"/>', x: '<path d="m7 7 10 10M7 17 17 7"/>', pause: '<path d="M9 6v12m6-12v12"/>',
+  check: '<path d="m5 12 4 4L19 6"/>', tidy: '<rect x="3" y="4" width="7" height="6" rx="1.5"/><rect x="14" y="4" width="7" height="6" rx="1.5"/><rect x="8.5" y="14" width="7" height="6" rx="1.5"/><path d="M6.5 10v2h11v-2M12 12v2"/>', x: '<path d="m7 7 10 10M7 17 17 7"/>', pause: '<path d="M9 6v12m6-12v12"/>',
 };
 const suggestions = [
   ['templates', 'Draw a web shop on Azure', 'Draw a web shop on Azure, from the browser through the API to the database.'],
@@ -47,7 +48,7 @@ function sparkline(scores) {
   return `<svg class="aip-spark" viewBox="-2 -2 ${w + 4} ${h + 4}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
 }
 
-export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine, onSettings, onImage, templates, highlighter, panelWidth }) {
+export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine, onTidy, onSettings, onImage, templates, highlighter, panelWidth }) {
   const conversations = new Map();
   let docId, conversation, timer = 0;
   const panel = document.createElement('section'); panel.id = 'aiPanel'; panel.className = 'ai-panel'; panel.hidden = true;
@@ -104,8 +105,41 @@ export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine,
     li.innerHTML = `<button type="button" class="aip-step-row" aria-expanded="false"><span class="aip-step-av"></span><span class="aip-step-text"><b class="aip-step-who"></b><span class="aip-step-what"></span></span><time></time><span class="aip-step-state" aria-hidden="true"><i class="spin"></i>${svg(G.check)}${svg(G.x)}<i class="skip"></i></span></button><p class="aip-live" hidden></p><div class="aip-step-detail" hidden></div>`;
     stepEls.set(step.id, li); return li;
   }
+  // ---------- a structured draw: reads like a chat reply ----------
+  // Streamed text, one activity line (expands to what changed), a thumbnail and the token count.
+  function paintDraw(turn, latest) {
+    const { run, prompt } = turn; let el = turnEls.get(run.id);
+    if (!el) {
+      el = document.createElement('article'); el.className = 'aip-turn draw'; el.dataset.run = run.id;
+      el.innerHTML = `<div class="aip-user"><img class="aip-user-img" alt="Your picture" hidden><p></p><span class="aip-user-ctx" hidden></span></div><div class="aip-reply"><div class="aip-say"></div><button type="button" class="aip-activity" aria-expanded="false"><span class="aip-act-state" aria-hidden="true"><i class="spin"></i>${svg(G.check)}${svg(G.x)}</span><span class="aip-act-text"></span><time></time>${icon('chevron')}</button><ul class="aip-changes" hidden></ul><img class="aip-thumb" alt="Result" data-full hidden><p class="aip-final" hidden></p><div class="aip-help" hidden></div><div class="aip-foot"><div class="aip-actions"></div><small class="aip-tokens"></small></div></div>`;
+      turnEls.set(run.id, el); turnsEl.appendChild(el);
+    }
+    const q = s => el.querySelector(s), working = run.status === 'running', st = run.steps[0];
+    setText(q('.aip-user p'), prompt || run.prompt || 'Read this picture'); q('.aip-user p').hidden = !(prompt || run.prompt) && !!run.imageSrc;
+    const ui = q('.aip-user-img'); ui.hidden = !run.imageSrc; if (run.imageSrc && ui.src !== run.imageSrc) ui.src = run.imageSrc;
+    q('.aip-user-ctx').hidden = !turn.context; setText(q('.aip-user-ctx'), turn.context || '');
+    q('.aip-reply').className = 'aip-reply ' + run.status;
+    setHtml(q('.aip-say'), run.say ? run.say.split('\n\n').map(p => `<p>${esc(p)}</p>`).join('') : working ? `<p class="aip-thinking">${esc(liveLine(st || {}) || 'Thinking…')}</p>` : '');
+    const n = c => run.changes.filter(x => x.change === c).length, shapes = run.changes.filter(x => x.change !== 'remove').length;
+    const act = q('.aip-activity'); act.className = 'aip-activity ' + run.status;
+    setText(q('.aip-act-text'), working ? (shapes ? `${st?.title || 'Drawing'} · ${shapes} item${shapes === 1 ? '' : 's'}` : st?.title || 'Thinking') : run.finish?.title || (run.status === 'error' ? 'Could not finish' : 'Stopped'));
+    setText(q('.aip-activity time'), clock((st?.ended || Date.now()) - run.started));
+    const exp = open.has(run.id); act.setAttribute('aria-expanded', String(exp));
+    const list = q('.aip-changes'); list.hidden = !exp || !run.changes.length;
+    if (exp) setHtml(list, run.changes.map(c => `<li class="${c.change}"><button type="button" data-goto="${esc(c.id)}" ${c.change === 'remove' ? 'disabled' : ''}><i></i>${esc(c.name)}<small>${{ add: 'added', update: 'changed', remove: 'removed' }[c.change]}</small></button></li>`).join(''));
+    const th = q('.aip-thumb'); th.hidden = !run.thumb; if (run.thumb && th.src !== run.thumb) th.src = run.thumb;
+    const final = working ? '' : run.error || (run.status === 'stopped' ? 'Stopped. What was drawn so far stays on the canvas.' : '');
+    q('.aip-final').hidden = !final; setText(q('.aip-final'), final);
+    const help = billingHelp(run); q('.aip-help').hidden = !help; setHtml(q('.aip-help'), help);
+    const acts = !working && latest ? `${run.finish?.undo ? `<button type="button" data-undo ${turn.undone ? 'disabled' : ''}>${svg(G.undo)}${turn.undone ? 'Undone' : 'Undo'}</button>` : ''}${run.status === 'done' ? `<button type="button" data-tidy title="Lay the whole diagram out again">${svg(G.tidy)}Tidy up</button>` : ''}` : '';
+    setHtml(q('.aip-actions'), acts);
+    const u = st?.usage;
+    setText(q('.aip-tokens'), u ? `${(u.in + u.cached).toLocaleString()} in · ${u.out.toLocaleString()} out${run.cost ? ' · $' + run.cost.toFixed(3) : ''}` : working && st?.outChars ? `~${Math.round(st.outChars / 4).toLocaleString()} tokens` : '');
+  }
+
   // ---------- one request + reply ----------
   function paintTurn(turn, latest) {
+    if (turn.run.kind === 'draw') return paintDraw(turn, latest);
     const { run, prompt } = turn; let el = turnEls.get(run.id);
     if (!el) {
       el = document.createElement('article'); el.className = 'aip-turn'; el.dataset.run = run.id;
@@ -148,7 +182,7 @@ export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine,
       $('#askStyle').value = conversation.style; grow();
     }
     const run = runFor(docId), busy = current?.status === 'running', config = settings();
-    if (run && !conversation.turns.some(t => t.run.id === run.id)) conversation.turns.push({ run, prompt: run.kind === 'replicate' ? 'Rebuild this image as an editable diagram' : 'Refine the diagram against the original' });
+    if (run && !conversation.turns.some(t => t.run.id === run.id)) conversation.turns.push({ run, prompt: run.kind === 'replicate' ? 'Copy this image as an editable diagram' : run.kind === 'draw' ? run.prompt || '' : 'Refine the diagram against the original' });
     // header
     const mark = $('.aip-logo');
     if (mark.dataset.provider !== config.provider) { mark.innerHTML = providerMark(config.provider); mark.dataset.provider = config.provider; }
@@ -202,6 +236,9 @@ export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine,
     if (t.matches('[data-mark-undo]')) { highlighter.undo(); return; }
     if (t.matches('[data-mark-clear]')) { highlighter.clear(); return; }
     if (t.matches('[data-sel-toggle]')) { useSelection = !useSelection; selKey = selected().map(x => x.id).join(); chips(false); return; }
+    if (t.matches('[data-tidy]')) { onTidy?.(); return; }
+    if (t.matches('.aip-activity')) { const id = t.closest('.aip-turn').dataset.run; open.has(id) ? open.delete(id) : open.add(id); refresh(); return; }
+    if (t.dataset.goto) { const el = state.doc.byId.get(t.dataset.goto); if (el) { select(el.id); panTo(bounds(el, state.doc), { right: panelWidth() }); flash([el.id], 'change'); } return; }
     if (t.matches('[data-undo]')) { const turn = conversation.turns.at(-1); undo(); if (turn) turn.undone = true; refresh(); return; }
     if (t.matches('.aip-fold')) { const id = t.closest('.aip-turn').dataset.run; folded.set(id, t.getAttribute('aria-expanded') === 'true'); refresh(); return; }
     if (t.matches('.aip-step-row')) { const id = t.closest('[data-step]').dataset.step; open.has(id) ? open.delete(id) : open.add(id); refresh(); return; }

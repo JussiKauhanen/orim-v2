@@ -18,11 +18,11 @@ const listeners = new Set();
 export const onRun = fn => listeners.add(fn);
 export let current = null;
 let tick = 0;
-const update = () => { cancelAnimationFrame(tick); tick = requestAnimationFrame(() => listeners.forEach(f => f(current))); };
+export const update = () => { cancelAnimationFrame(tick); tick = requestAnimationFrame(() => listeners.forEach(f => f(current))); };
 
 const runs = new Map(); // docId -> latest run, so each diagram shows its own agent history
 export const runFor = docId => runs.get(docId) || null;
-function newRun(kind, title) {
+export function newRun(kind, title) {
   current = { id: uid('r'), docId: state.doc?.id, provider: settings().provider, kind, title, status: 'running', steps: [], scores: [], cost: 0, started: Date.now(), ctl: new AbortController() };
   runs.set(current.docId, current);
   update(); return current;
@@ -43,15 +43,15 @@ function showGhosts(doc, boxes) {
   emit();
 }
 function clearGhosts(doc) { const n = doc.elements.length; doc.elements = doc.elements.filter(e => !e.ghost); if (doc.elements.length !== n) emit(); }
-function step(run, agent, title, extra = {}) {
+export function step(run, agent, title, extra = {}) {
   const s = { id: uid('s'), agent, title, status: 'running', text: '', thinking: '', images: [], log: [], started: Date.now(), ...extra };
   run.steps.push(s); update(); return s;
 }
-const done = (s, status = 'done', note) => { s.status = status; s.ended = Date.now(); if (note) s.log.push(note); update(); };
+export const done = (s, status = 'done', note) => { s.status = status; s.ended = Date.now(); if (note) s.log.push(note); update(); };
 const log = (s, m) => { s.log.push(m); update(); };
 export function stop() { if (current && current.status === 'running') { current.ctl.abort(); current.status = 'stopped'; update(); } }
 
-function charge(run, res, s) {
+export function charge(run, res, s) {
   run.cost += res.cost || 0;
   if (s) {
     s.cost = (s.cost || 0) + (res.cost || 0); s.tokens = (s.tokens || 0) + (res.usage?.output_tokens || 0); s.outChars = 0;
@@ -150,7 +150,7 @@ export async function replicate({ src, instructions = '', diagramOnly = false, i
   return run;
 }
 
-function fail(run, e) {
+export function fail(run, e) {
   console.error(e);
   run.status = e.code === 'aborted' ? 'stopped' : 'error'; run.error = e.message || String(e); run.errorCode = e.code;
   for (const s of run.steps) if (s.status === 'running') done(s, run.status === 'stopped' ? 'stopped' : 'error');

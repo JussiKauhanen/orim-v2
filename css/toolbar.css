@@ -47,3 +47,4 @@
 .quick-insert small { display: block; margin-top: 10px; color: var(--muted); font-size: 10px; }
 .pal-lines { grid-column: 1 / -1; width: 100%; }
 .context-toolbar select[data-field="size"] { min-width: 61px; max-width: 70px; }
+.ctx-note { max-width: 340px; margin: 5px 4px 2px; padding: 6px 2px 1px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.45; white-space: normal; }

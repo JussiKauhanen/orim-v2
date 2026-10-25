@@ -76,7 +76,7 @@
     </div>
   </header>
   <div class="canvas-zoom" role="toolbar" aria-label="Canvas zoom">
-    <button class="ib" id="zoomOut" title="Zoom out" aria-label="Zoom out" data-icon="minus"></button><button class="ib wide" id="zoomFit" title="Fit diagram (⌘0)" aria-label="Fit diagram">Fit</button><button class="ib" id="zoomIn" title="Zoom in" aria-label="Zoom in" data-icon="plus"></button>
+    <button class="ib wide" id="tidyBtn" title="Lay the diagram out automatically">Tidy up</button><span class="sep"></span><button class="ib" id="zoomOut" title="Zoom out" aria-label="Zoom out" data-icon="minus"></button><button class="ib wide" id="zoomFit" title="Fit diagram (⌘0)" aria-label="Fit diagram">Fit</button><button class="ib" id="zoomIn" title="Zoom in" aria-label="Zoom in" data-icon="plus"></button>
   </div>
   <aside id="palette" class="palette"></aside>
   <main id="stage" class="stage"></main>
@@ -89,16 +89,19 @@
 <!-- DIALOGS -->
 <dialog id="repDlg" class="dlg replicate-dialog">
   <form method="dialog">
-    <h2><span data-icon="ai"></span>Replicate this image</h2>
-    <div class="rep-image-choice"><label for="repImageSelect">Image to replicate</label><div><select id="repImageSelect"><option value="">Choose an image…</option></select><button type="button" id="repChooseFile" class="btn">Upload image…</button><input type="file" id="repFile" accept="image/*" hidden></div></div>
+    <h2><span data-icon="ai"></span>Use an image</h2>
+    <div class="rep-image-choice"><label for="repImageSelect">Image</label><div><select id="repImageSelect"><option value="">Choose an image…</option></select><button type="button" id="repChooseFile" class="btn">Upload image…</button><input type="file" id="repFile" accept="image/*" hidden></div></div>
     <div class="rep-grid"><div class="rep-crop"><div class="rep-crop-frame"><div id="repCropEmpty">Choose an image to preview and crop.</div><div id="repCropSurface" tabindex="0" role="group" aria-label="Image crop area" hidden><img id="repPreview" alt="Image to replicate" draggable="false"><svg id="repCropOverlay" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true"></svg></div></div><div class="rep-crop-footer"><span id="repCropHint" role="status"></span><button type="button" id="repCropReset">Use full image</button></div></div><div>
+      <fieldset class="rep-mode"><legend>What should I do with it?</legend>
+        <label><input type="radio" name="repMode" value="structure" checked><span><b>Understand it</b><small>Rebuild its parts, groups and links as a tidy, editable diagram. Fast.</small></span></label>
+        <label><input type="radio" name="repMode" value="exact"><span><b>Copy the exact look</b><small>Match shapes, colours and positions pixel by pixel. Slower; uses more tokens.</small></span></label></fieldset>
       <label class="f wide"><span>Instructions (optional)</span><textarea id="repInstr" rows="3" placeholder="e.g. use Inter for all text, the arrows are curved"></textarea></label>
-      <label class="f wide"><span>Critic rounds</span><input type="number" id="repIter" min="0" max="10"></label>
-      <label class="chk"><input type="checkbox" id="repDesign"> Design missing shapes and add them to the library</label>
-      <label class="chk"><input type="checkbox" id="repDiagramOnly"> Diagram only (skip app UI and toolbars around it)</label>
+      <label class="f wide rep-exact"><span>Critic rounds</span><input type="number" id="repIter" min="0" max="10"></label>
+      <label class="chk rep-exact"><input type="checkbox" id="repDesign"> Design missing shapes and add them to the library</label>
+      <label class="chk rep-exact"><input type="checkbox" id="repDiagramOnly"> Diagram only (skip app UI and toolbars around it)</label>
       <p id="repKeyWarn" class="err" hidden>Add an API key in Settings first.</p>
     </div></div>
-    <div class="dlg-actions"><button type="button" class="btn" data-close>Cancel</button><button class="btn ai-primary" id="repGo" disabled><span data-icon="ai"></span>Replicate</button></div>
+    <div class="dlg-actions"><button type="button" class="btn" data-close>Cancel</button><button class="btn ai-primary" id="repGo" disabled><span data-icon="ai"></span>Start</button></div>
   </form>
 </dialog>
 
