@@ -1,117 +1,232 @@
-// The floating chat owns prompts, suggestions and its conversation history.
-import { state, onChange, undo } from '../store.js';
+// The AI side panel: one conversation per diagram. Each request is a user bubble followed by
+// a live reply that lists the agents' steps as they work (who, what, how long, what they are
+// thinking right now); finished replies fold their steps away. While the panel is closed a
+// small status pill shows the active step.
+import { state, onChange, undo, selected } from '../store.js';
 import { onRun, runFor, current, stop } from './replicate.js';
 import { hasKey, settings, modelInfo } from './llm.js';
 import { icon } from '../icons.js';
 import { providerMark, providerNames, billingHelp } from './provider-ui.js';
+import { stepIdentity, stepAction } from './agent-meta.js';
+import { hoverStep, stepBox } from './agent-presence.js';
+import { panTo } from '../editor.js';
 
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const svg = body => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${body}</svg>`;
+const setText = (el, v) => { const t = String(v ?? ''); if (el.textContent !== t) el.textContent = t; };
+const setHtml = (el, h) => { if (el._html !== h) { el.innerHTML = h; el._html = h; } };
+const clock = ms => { const s = Math.max(0, Math.round(ms / 1000)); return s < 60 ? s + 's' : Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
+const G = {
+  compose: '<path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+  locate: '<circle cx="12" cy="12" r="3"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/>',
+  selection: '<rect x="4" y="4" width="16" height="16" rx="2" stroke-dasharray="3 2.5"/>',
+  undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  check: '<path d="m5 12 4 4L19 6"/>', x: '<path d="m7 7 10 10M7 17 17 7"/>', pause: '<path d="M9 6v12m6-12v12"/>',
+};
 const suggestions = [
   ['templates', 'Draw a web shop on Azure', 'Draw a web shop on Azure, from the browser through the API to the database.'],
   ['rect', 'Mock up mobile screens', 'Mock up three mobile screens for a simple task manager: tasks, task details, and a new task.'],
   ['map', 'Compare two products', 'Create a clear side-by-side comparison of two products, with headings for features, price, and best fit.'],
   ['note', 'Plan a project with tickets', 'Plan a website launch with tickets grouped into To do, In progress, and Done.'],
 ];
+const stateOf = (step, run) => step.status === 'running' && run.status !== 'running' ? run.status : step.status;
+function identity(step) {
+  const { agent, name, provider } = stepIdentity(step);
+  return { name, color: agent.color, avatar: provider ? `<span class="aip-av model ${provider}">${providerMark(provider)}</span>` : `<span class="aip-av" style="--c:${agent.color}">${svg(agent.icon)}</span>` };
+}
+const action = (step, who) => stepAction(step, who);
+// The freshest line of the agent's reasoning, or its last log line.
+function liveLine(step) {
+  const lines = (step.thinking || '').split('\n').map(l => l.replace(/[*#_`>]+/g, '').trim()).filter(l => l.length > 3);
+  return lines.at(-1) || step.log?.at(-1) || '';
+}
+function sparkline(scores) {
+  if (!scores || scores.length < 2) return '';
+  const lo = Math.min(...scores) - 2, hi = Math.max(...scores) + 2, w = 64, h = 18;
+  const pts = scores.map((s, i) => `${(i / (scores.length - 1) * w).toFixed(1)},${(h - (s - lo) / (hi - lo) * h).toFixed(1)}`).join(' ');
+  return `<svg class="aip-spark" viewBox="-2 -2 ${w + 4} ${h + 4}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
 
-export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine, onSettings, onAgents, templates, highlighter }) {
+export function initAIChat(stage, { onOpen, onClose, onSend, onAttach, onRefine, onSettings, onImage, templates, highlighter, panelWidth }) {
   const conversations = new Map();
-  let docId, conversation, lastLog = '', showHistory = false;
-  const dock = document.createElement('section'); dock.id = 'aiComposerDock'; dock.className = 'ai-compose-wrap'; dock.hidden = true;
-  dock.setAttribute('aria-label', 'AI chat');
-  dock.innerHTML = `<div class="ai-dock-heading"><button type="button" data-ai-brand><span class="ai-provider-logo"></span><b class="ai-provider-name"></b></button>
-    <details class="ai-ideas"><summary>Chat &amp; ideas ${icon('chevron')}</summary><div class="ai-ideas-menu"><div class="ai-suggestions">${suggestions.map(([i, label, prompt], n) => `<button type="button" data-prompt="${esc(prompt)}" class="suggestion-${n}">${icon(i)}<span>${label}</span></button>`).join('')}<button type="button" data-attach class="suggestion-image">${icon('image')}<span>Turn a photo into a diagram</span></button></div><button type="button" id="aiHistoryToggle" aria-expanded="false" aria-controls="aiConversation" hidden>Show conversation</button></div></details>
-    <button type="button" class="ai-dock-close" data-ai-collapse aria-label="Collapse AI chat">${icon('close')}</button></div>
-    <div id="aiConversation" class="ai-thread" aria-label="Conversation" hidden></div>
-    <button type="button" id="aiDockStatus" data-agents hidden></button>
-    <div id="aiBillingHelp" hidden></div>
-    <div class="ai-context"><button type="button" id="refineBtn" hidden>${icon('refine')}Refine from image</button><label id="askStyleWrap" hidden>Style<select id="askStyle" aria-label="Diagram style"><option value="">Let AI choose</option></select></label></div>
-    <button type="button" class="ai-connect" hidden>Connect your AI to get started ${icon('chevron')}</button>
-    <div class="ai-mark-note" hidden><span></span><button type="button" id="aiMarkUndo">Undo mark</button><button type="button" id="aiMarkClear">Clear</button></div>
-    <form class="ai-composer"><textarea id="askIn" rows="3" aria-label="Message AI" placeholder="Where shall we start?"></textarea><div class="ai-compose-tools">
-      <button type="button" id="replicateBtn" class="ai-attach" title="Replicate an image" aria-label="Replicate an image">${icon('plus')}</button>
-      <button type="button" id="aiHighlight" title="Highlight areas to change" aria-label="Highlight areas to change" aria-pressed="false">${icon('highlighter')}</button>
-      <button type="button" id="aiSettings" class="ai-model-choice" title="Model and quality settings" aria-label="Model and quality settings"><span class="ai-model-label"></span>${icon('chevron')}</button>
-      <button type="submit" id="askGo" class="ai-send" aria-label="Send message" title="Send message"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
-      <button type="button" id="aiStop" class="ai-send" aria-label="Stop AI" title="Stop AI" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg></button>
-    </div></form>`;
-  stage.appendChild(dock);
-  const $ = s => dock.querySelector(s), input = $('#askIn'), log = $('.ai-thread'), ideas = $('.ai-ideas');
+  let docId, conversation, timer = 0;
+  const panel = document.createElement('section'); panel.id = 'aiPanel'; panel.className = 'ai-panel'; panel.hidden = true;
+  panel.setAttribute('aria-label', 'AI assistant');
+  panel.innerHTML = `<header class="aip-head"><button type="button" class="aip-brand" data-settings title="Provider and model settings"><span class="aip-logo"></span><span><b class="aip-provider"></b><small class="aip-model"></small></span>${icon('chevron')}</button>
+      <button type="button" class="aip-icon" data-new title="New conversation" aria-label="New conversation">${svg(G.compose)}</button>
+      <button type="button" class="aip-icon" data-close title="Close" aria-label="Close AI panel">${icon('close')}</button></header>
+    <div class="aip-thread" role="log" aria-live="polite" aria-label="Conversation">
+      <div class="aip-empty"><span class="aip-hello">${icon('ai')}</span><h3>What are we making?</h3><p>Describe a diagram, point at something to change, or give me a picture to rebuild. You can keep editing while I work.</p>
+        <div class="aip-ideas">${suggestions.map(([i, label, prompt]) => `<button type="button" data-prompt="${esc(prompt)}">${icon(i)}<span>${label}</span></button>`).join('')}<button type="button" data-attach>${icon('image')}<span>Rebuild a picture as a diagram</span></button></div></div>
+      <div class="aip-turns"></div></div>
+    <button type="button" class="aip-connect" hidden>Connect your AI to get started ${icon('chevron')}</button>
+    <form class="aip-composer"><div class="aip-chips"></div>
+      <textarea id="askIn" rows="1" aria-label="Message AI" placeholder="Ask AI to draw or change something"></textarea>
+      <div class="aip-tools">
+        <button type="button" id="replicateBtn" title="Rebuild an image as a diagram" aria-label="Rebuild an image as a diagram">${icon('plus')}</button>
+        <button type="button" id="aiHighlight" title="Highlight areas to change" aria-label="Highlight areas to change" aria-pressed="false">${icon('highlighter')}</button>
+        <button type="button" id="refineBtn" title="Refine against the original image" aria-label="Refine against the original image" hidden>${icon('refine')}</button>
+        <label class="aip-style" id="askStyleWrap" hidden><select id="askStyle" aria-label="Diagram style"><option value="">Any style</option></select>${icon('chevron')}</label>
+        <span class="grow"></span>
+        <button type="submit" id="askGo" class="aip-send" aria-label="Send" title="Send (Enter)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
+        <button type="button" id="aiStop" class="aip-send stop" aria-label="Stop" title="Stop" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg></button>
+      </div></form>`;
+  stage.appendChild(panel);
+  const pill = document.createElement('div'); pill.id = 'aiPill'; pill.className = 'ai-pill'; pill.hidden = true;
+  pill.innerHTML = '<button type="button" class="ai-pill-open" aria-label="Open AI panel"><span class="ai-pill-av"></span><span class="ai-pill-text"><b></b><small></small></span><time></time></button><button type="button" class="ai-pill-stop" aria-label="Stop" title="Stop"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor"/></svg></button>';
+  stage.appendChild(pill);
+  const $ = s => panel.querySelector(s), input = $('#askIn'), thread = $('.aip-thread'), turnsEl = $('.aip-turns');
+  const turnEls = new Map(), stepEls = new Map(), open = new Set(), folded = new Map();
+  let useSelection = true, selKey = '';
+
   function remember() { if (conversation) { conversation.draft = input.value; conversation.style = $('#askStyle').value; } }
+  function grow() { input.style.height = 'auto'; input.style.height = Math.min(input.scrollHeight, 180) + 'px'; }
+  const atBottom = () => thread.scrollHeight - thread.scrollTop - thread.clientHeight < 80;
+
+  // ---------- one step row ----------
+  function paintStep(li, step, run) {
+    const who = identity(step), st = stateOf(step, run), q = s => li.querySelector(s);
+    li.className = 'aip-step ' + st; li.style.setProperty('--c', who.color);
+    setHtml(q('.aip-step-av'), who.avatar);
+    setText(q('.aip-step-who'), who.name); setText(q('.aip-step-what'), action(step, who.name));
+    setText(q('time'), clock((step.ended || Date.now()) - step.started));
+    const live = st === 'running' ? liveLine(step) : '';
+    q('.aip-live').hidden = !live; setText(q('.aip-live'), live);
+    const exp = open.has(step.id); q('.aip-step-row').setAttribute('aria-expanded', String(exp));
+    const d = q('.aip-step-detail'); d.hidden = !exp; if (!exp) return;
+    const usage = step.usage ? `${step.usage.in.toLocaleString()} in · ${step.usage.out.toLocaleString()} out${step.cost ? ' · $' + step.cost.toFixed(3) : ''}` : '';
+    const box = stepBox(step);
+    setHtml(d, `${step.summary ? `<p>${esc(step.summary)}</p>` : ''}${step.log?.length ? `<ul>${step.log.map(l => `<li>${esc(l)}</li>`).join('')}</ul>` : ''}${step.images?.length ? `<div class="aip-imgs">${step.images.map(i => `<figure><img src="${esc(i.src)}" alt="${esc(i.label)}" data-full><figcaption>${esc(i.label)}</figcaption></figure>`).join('')}</div>` : ''}${step.thinking ? `<details><summary>Reasoning</summary><div class="aip-think">${esc(step.thinking)}</div></details>` : ''}<div class="aip-step-foot">${usage ? `<small>${usage}</small>` : '<span></span>'}${box ? `<button type="button" data-locate="${step.id}">${svg(G.locate)}Show on canvas</button>` : ''}</div>`);
+  }
+  function stepEl(step) {
+    let li = stepEls.get(step.id); if (li) return li;
+    li = document.createElement('li'); li.dataset.step = step.id;
+    li.innerHTML = `<button type="button" class="aip-step-row" aria-expanded="false"><span class="aip-step-av"></span><span class="aip-step-text"><b class="aip-step-who"></b><span class="aip-step-what"></span></span><time></time><span class="aip-step-state" aria-hidden="true"><i class="spin"></i>${svg(G.check)}${svg(G.x)}<i class="skip"></i></span></button><p class="aip-live" hidden></p><div class="aip-step-detail" hidden></div>`;
+    stepEls.set(step.id, li); return li;
+  }
+  // ---------- one request + reply ----------
+  function paintTurn(turn, latest) {
+    const { run, prompt } = turn; let el = turnEls.get(run.id);
+    if (!el) {
+      el = document.createElement('article'); el.className = 'aip-turn'; el.dataset.run = run.id;
+      el.innerHTML = `<div class="aip-user"><p></p><span class="aip-user-ctx" hidden></span></div><div class="aip-reply"><div class="aip-reply-head"><span class="aip-faces"></span><b></b><time></time></div><button type="button" class="aip-fold" hidden></button><ol class="aip-steps"></ol><div class="aip-score" hidden></div><p class="aip-final" hidden></p><div class="aip-help" hidden></div><div class="aip-actions" hidden></div></div>`;
+      turnEls.set(run.id, el); turnsEl.appendChild(el);
+    }
+    const q = s => el.querySelector(s), working = run.status === 'running', failed = run.status === 'error';
+    setText(q('.aip-user p'), prompt);
+    q('.aip-user-ctx').hidden = !turn.context; setText(q('.aip-user-ctx'), turn.context || '');
+    const reply = q('.aip-reply'); reply.className = 'aip-reply ' + run.status;
+    const agents = [...new Set(run.steps.map(s => s.agent))].slice(-4);
+    setHtml(q('.aip-faces'), agents.map(a => identity(run.steps.findLast(s => s.agent === a)).avatar).join(''));
+    const active = run.steps.findLast(s => s.status === 'running');
+    setText(q('.aip-reply-head b'), working ? (active ? 'Working on it' : 'Getting started') : run.finish?.title || (failed ? 'Could not finish' : 'Stopped'));
+    setText(q('.aip-reply-head time'), clock((working ? Date.now() : run.ended || run.steps.reduce((t, s) => Math.max(t, s.ended || 0), 0) || Date.now()) - run.started));
+    // finished replies fold their steps into one line; the user can unfold them
+    const fold = !working && run.steps.length > 1 && folded.get(run.id) !== false;
+    const fb = q('.aip-fold'); fb.hidden = working || run.steps.length < 2;
+    setHtml(fb, `${run.steps.length} steps${run.cost ? ` · $${run.cost.toFixed(3)}` : ''} ${icon('chevron')}`); fb.setAttribute('aria-expanded', String(!fold));
+    const ol = q('.aip-steps'); ol.hidden = fold;
+    if (!fold) { let prev = null; for (const step of run.steps) { const li = stepEl(step); paintStep(li, step, run); const want = prev ? prev.nextSibling : ol.firstChild; if (want !== li) ol.insertBefore(li, want); prev = li; } }
+    const score = run.first != null && run.final != null;
+    q('.aip-score').hidden = !score;
+    if (score) setHtml(q('.aip-score'), `<span>Similarity</span><b>${run.first}</b>→<b>${run.final}</b>${sparkline(run.scores)}`);
+    const final = working ? '' : run.error || run.finish?.text || (run.status === 'stopped' ? 'Stopped. The changes made so far stay on the canvas.' : '');
+    q('.aip-final').hidden = !final; setText(q('.aip-final'), final);
+    const help = billingHelp(run); q('.aip-help').hidden = !help; setHtml(q('.aip-help'), help);
+    const acts = !working && latest ? `${run.finish?.undo ? `<button type="button" data-undo ${turn.undone ? 'disabled' : ''}>${svg(G.undo)}${turn.undone ? 'Undone' : 'Undo'}</button>` : ''}${run.finish?.refine && state.doc?.source ? `<button type="button" data-refine>${icon('refine')}Refine again</button>` : ''}` : '';
+    q('.aip-actions').hidden = !acts; setHtml(q('.aip-actions'), acts);
+  }
+
   function refresh() {
     if (!state.doc) return;
     if (docId !== state.doc.id) {
       remember(); docId = state.doc.id;
       if (!conversations.has(docId)) conversations.set(docId, { draft: '', style: '', turns: [] });
-      conversation = conversations.get(docId); input.value = conversation.draft; showHistory = false; ideas.open = false;
-      $('#askStyle').innerHTML = '<option value="">Let AI choose</option>' + templates().map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
-      $('#askStyle').value = conversation.style; lastLog = '';
+      conversation = conversations.get(docId); input.value = conversation.draft;
+      turnEls.clear(); stepEls.clear(); turnsEl.replaceChildren();
+      $('#askStyle').innerHTML = '<option value="">Any style</option>' + templates().map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+      $('#askStyle').value = conversation.style; grow();
     }
     const run = runFor(docId), busy = current?.status === 'running', config = settings();
-    if (run && !conversation.turns.some(t => t.run.id === run.id)) conversation.turns.push({ run, prompt: run.kind === 'replicate' ? 'Turn this image into an editable diagram' : 'Refine the diagram against the original' });
-    const mark = $('.ai-provider-logo');
+    if (run && !conversation.turns.some(t => t.run.id === run.id)) conversation.turns.push({ run, prompt: run.kind === 'replicate' ? 'Rebuild this image as an editable diagram' : 'Refine the diagram against the original' });
+    // header
+    const mark = $('.aip-logo');
     if (mark.dataset.provider !== config.provider) { mark.innerHTML = providerMark(config.provider); mark.dataset.provider = config.provider; }
-    $('.ai-provider-name').textContent = providerNames[config.provider];
-    $('.ai-model-label').textContent = modelInfo(config.roles.editor).name;
-    const status = $('#aiDockStatus'); status.hidden = !run; status.classList.toggle('failed', run?.status === 'error');
-    status.textContent = !run ? '' : (run.status === 'running' ? run.steps.findLast(s => s.status === 'running')?.title || 'Getting started…' : run.finish?.title || (run.status === 'error' ? 'Could not finish' : 'Stopped')) + ' · Agent activity';
-    const help = billingHelp(run), billing = $('#aiBillingHelp');
-    billing.hidden = !help;
-    if (billing.innerHTML !== help) billing.innerHTML = help;
+    setText($('.aip-provider'), providerNames[config.provider]); setText($('.aip-model'), modelInfo(config.roles.editor).name);
+    // thread
+    const follow = atBottom();
+    $('.aip-empty').hidden = conversation.turns.length > 0;
+    conversation.turns.forEach((t, i) => paintTurn(t, i === conversation.turns.length - 1));
+    if (follow) thread.scrollTop = thread.scrollHeight;
+    // composer
     const blank = !state.doc.elements.length && !state.doc.source;
-    input.placeholder = blank ? 'Where shall we start?' : 'What should change?';
+    input.placeholder = blank ? 'Describe a diagram to draw…' : 'Ask AI to change something…';
     $('#askGo').disabled = busy || !input.value.trim(); $('#askGo').hidden = busy; $('#aiStop').hidden = !busy;
-    for (const id of ['replicateBtn', 'refineBtn', 'aiHighlight', 'aiMarkUndo', 'aiMarkClear']) $('#' + id).disabled = busy;
+    for (const id of ['replicateBtn', 'refineBtn', 'aiHighlight']) $('#' + id).disabled = busy;
     $('#refineBtn').hidden = !state.doc.source || !state.doc.elements.length; $('#askStyleWrap').hidden = !blank;
-    $('.ai-connect').hidden = hasKey();
+    $('.aip-connect').hidden = hasKey();
     $('#aiHighlight').setAttribute('aria-pressed', String(highlighter.active()));
-    const count = highlighter.count(); $('.ai-mark-note').hidden = !count && !highlighter.active();
-    $('.ai-mark-note span').textContent = highlighter.active() ? 'Mark areas, then send your message.' : `${count} highlighted area${count === 1 ? '' : 's'} ${busy ? 'sent to AI' : 'will be sent'}`;
-    $('#aiMarkUndo').hidden = !count; $('#aiMarkClear').hidden = !count;
-    $('#aiHistoryToggle').hidden = !conversation.turns.length; $('#aiHistoryToggle').textContent = showHistory ? 'Hide conversation' : 'Show conversation';
-    $('#aiHistoryToggle').setAttribute('aria-expanded', String(showHistory)); log.hidden = !showHistory;
-    const html = conversation.turns.map(({ run: r, prompt }) => {
-      const working = r.status === 'running', failed = r.status === 'error';
-      const title = working ? r.steps.findLast(s => s.status === 'running')?.title || 'Getting started…' : r.finish?.title || (failed ? 'Could not finish' : 'Stopped');
-      const message = working ? 'You can keep working on the canvas.' : r.error || r.finish?.text || 'The changes made so far are on the canvas.';
-      return `<article class="ai-turn"><p class="ai-user-message">${esc(prompt)}</p><div class="ai-reply ${failed ? 'failed' : ''}"><b class="${working ? 'ai-working' : ''}">${esc(title)}</b><p>${esc(message)}</p>${billingHelp(r)}<div class="ai-reply-actions"><button type="button" data-agents>Agent activity ${icon('chevron')}</button>${r.finish?.undo && r.id === run?.id ? '<button type="button" data-undo>Undo</button>' : ''}</div></div></article>`;
-    }).join('');
-    if (html !== lastLog) { const follow = log.scrollHeight - log.scrollTop - log.clientHeight < 64; log.innerHTML = html; lastLog = html; if (follow) log.scrollTop = log.scrollHeight; }
+    chips(busy);
+    paintPill(run);
+    clearTimeout(timer); if (busy) timer = setTimeout(refresh, 1000);
   }
-  dock.addEventListener('click', e => {
-    const suggestion = e.target.closest('[data-prompt]');
-    if (suggestion) { input.value = suggestion.dataset.prompt; remember(); ideas.open = false; refresh(); onOpen(); }
-    if (e.target.closest('[data-attach], #replicateBtn')) { ideas.open = false; onAttach(); }
-    if (e.target.closest('#refineBtn')) onRefine();
-    if (e.target.closest('#aiSettings, .ai-connect, [data-ai-brand]')) onSettings();
-    if (e.target.closest('[data-ai-collapse]')) { ideas.open = false; onClose(); }
-    if (e.target.closest('[data-agents]')) onAgents();
-    if (e.target.closest('#aiHistoryToggle')) { showHistory = !showHistory; ideas.open = false; refresh(); }
-    if (e.target.closest('[data-undo]')) { undo(); e.target.closest('[data-undo]').disabled = true; }
-    if (e.target.closest('#aiStop')) stop();
-    if (e.target.closest('#aiHighlight')) highlighter.toggle();
-    if (e.target.closest('#aiMarkUndo')) highlighter.undo();
-    if (e.target.closest('#aiMarkClear')) highlighter.clear();
+  // Context the next message carries: the selection and any highlighter marks.
+  function chips(busy) {
+    const sel = selected().filter(e => !e.ghost), count = highlighter.count(), marking = highlighter.active();
+    const key = sel.map(e => e.id).join();
+    if (key !== selKey) { selKey = key; useSelection = true; }
+    let h = '';
+    if (sel.length) h += `<span class="aip-chip${useSelection ? '' : ' off'}">${svg(G.selection)}<button type="button" data-sel-toggle title="${useSelection ? 'The request is about the selection — click to use the whole diagram' : 'Use the selection'}">${sel.length === 1 ? esc(sel[0].text?.content?.split('\n')[0].slice(0, 24) || 'Selected shape') : sel.length + ' selected'}</button>${useSelection ? `<button type="button" class="x" data-sel-toggle aria-label="Don't use selection">${icon('close')}</button>` : ''}</span>`;
+    if (count || marking) h += `<span class="aip-chip mark">${icon('highlighter')}<span>${marking && !count ? 'Mark areas on the canvas' : `${count} marked area${count === 1 ? '' : 's'}`}</span>${count && !busy ? `<button type="button" data-mark-undo title="Undo last mark">${svg(G.undo)}</button><button type="button" class="x" data-mark-clear aria-label="Clear marks">${icon('close')}</button>` : ''}</span>`;
+    setHtml($('.aip-chips'), h); $('.aip-chips').hidden = !h;
+  }
+  function paintPill(run) {
+    const show = panel.hidden && run?.status === 'running'; pill.hidden = !show; if (!show) return;
+    const step = run.steps.findLast(s => s.status === 'running'), who = step ? identity(step) : { name: 'AI', avatar: '' };
+    setHtml(pill.querySelector('.ai-pill-av'), who.avatar);
+    setText(pill.querySelector('b'), step ? who.name : 'Getting started');
+    setText(pill.querySelector('small'), step ? liveLine(step) || action(step, who.name) : '');
+    setText(pill.querySelector('time'), clock(Date.now() - run.started));
+  }
+
+  panel.addEventListener('click', e => {
+    const t = e.target.closest('button, img[data-full]'); if (!t) return;
+    if (t.dataset.prompt) { input.value = t.dataset.prompt; remember(); grow(); refresh(); input.focus(); return; }
+    if (t.matches('[data-attach], #replicateBtn')) { onAttach(); return; }
+    if (t.matches('#refineBtn, [data-refine]')) { onRefine(); return; }
+    if (t.matches('[data-settings], .aip-connect')) { onSettings(); return; }
+    if (t.matches('[data-close]')) { onClose(); return; }
+    if (t.matches('[data-new]')) { if (current?.status === 'running') return; conversation.turns = []; turnEls.clear(); stepEls.clear(); turnsEl.replaceChildren(); refresh(); input.focus(); return; }
+    if (t.matches('#aiStop')) { stop(); return; }
+    if (t.matches('#aiHighlight')) { highlighter.toggle(); return; }
+    if (t.matches('[data-mark-undo]')) { highlighter.undo(); return; }
+    if (t.matches('[data-mark-clear]')) { highlighter.clear(); return; }
+    if (t.matches('[data-sel-toggle]')) { useSelection = !useSelection; selKey = selected().map(x => x.id).join(); chips(false); return; }
+    if (t.matches('[data-undo]')) { const turn = conversation.turns.at(-1); undo(); if (turn) turn.undone = true; refresh(); return; }
+    if (t.matches('.aip-fold')) { const id = t.closest('.aip-turn').dataset.run; folded.set(id, t.getAttribute('aria-expanded') === 'true'); refresh(); return; }
+    if (t.matches('.aip-step-row')) { const id = t.closest('[data-step]').dataset.step; open.has(id) ? open.delete(id) : open.add(id); refresh(); return; }
+    if (t.dataset.locate) { const step = conversation.turns.flatMap(x => x.run.steps).find(s => s.id === t.dataset.locate); const b = step && stepBox(step); if (b) panTo(b, { right: panelWidth() }); return; }
+    if (t.matches('img[data-full]') && onImage) onImage(t.src, t.alt);
   });
-  document.addEventListener('pointerdown', e => { if (!ideas.contains(e.target)) ideas.open = false; });
-  function placeIdeas() {
-    if (!ideas.open) return;
-    const r = ideas.getBoundingClientRect(), menu = $('.ai-ideas-menu');
-    const above = r.top - Math.max(0, stage.getBoundingClientRect().top) - 12, below = innerHeight - r.bottom - 18;
-    const useAbove = above >= menu.scrollHeight || above >= below;
-    ideas.dataset.placement = useAbove ? 'above' : 'below';
-    menu.style.maxHeight = Math.max(40, useAbove ? above : below) + 'px';
-  }
-  ideas.addEventListener('toggle', placeIdeas); window.addEventListener('resize', placeIdeas);
-  dock.addEventListener('keydown', e => { if (e.key === 'Escape' && ideas.open) { ideas.open = false; e.preventDefault(); e.stopPropagation(); ideas.querySelector('summary').focus(); } });
-  input.addEventListener('input', () => { remember(); refresh(); }); $('#askStyle').addEventListener('change', remember);
-  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!$('#askGo').disabled) $('.ai-composer').requestSubmit(); } });
-  $('.ai-composer').addEventListener('submit', e => {
+  // hovering a step outlines what it worked on
+  panel.addEventListener('pointerover', e => { const li = e.target.closest('[data-step]'); hoverStep(li ? conversation.turns.flatMap(x => x.run.steps).find(s => s.id === li.dataset.step) : null); });
+  panel.addEventListener('pointerleave', () => hoverStep(null));
+  pill.addEventListener('click', e => { if (e.target.closest('.ai-pill-stop')) stop(); else onOpen(); });
+  input.addEventListener('input', () => { remember(); grow(); refresh(); }); $('#askStyle').addEventListener('change', remember);
+  input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!$('#askGo').disabled) $('.aip-composer').requestSubmit(); } if (e.key === 'Escape') { e.preventDefault(); onClose(); } });
+  $('.aip-composer').addEventListener('submit', e => {
     e.preventDefault(); const prompt = input.value.trim();
-    if (!prompt || current?.status === 'running' || !onSend(prompt, $('#askStyle').value)) return;
-    const run = runFor(docId), existing = conversation.turns.find(t => t.run.id === run.id);
-    if (existing) existing.prompt = prompt; else conversation.turns.push({ prompt, run });
-    input.value = ''; $('#askStyle').value = ''; remember(); refresh(); input.focus();
+    const sel = useSelection ? selected().filter(x => !x.ghost) : [];
+    if (!prompt || current?.status === 'running' || !onSend(prompt, $('#askStyle').value, sel.map(x => x.id))) return;
+    const run = runFor(docId), context = [sel.length ? (sel.length === 1 ? '1 shape' : sel.length + ' shapes') : '', highlighter.count() ? highlighter.count() + ' marked' : ''].filter(Boolean).join(' · ');
+    const existing = conversation.turns.find(t => t.run.id === run.id);
+    if (existing) Object.assign(existing, { prompt, context }); else conversation.turns.push({ prompt, run, context });
+    input.value = ''; $('#askStyle').value = ''; remember(); grow(); thread.scrollTop = thread.scrollHeight; refresh(); input.focus();
   });
   onChange(refresh); onRun(refresh);
-  return { refresh, focus() { refresh(); input.focus(); }, openHistory() { showHistory = true; refresh(); }, setExpanded(value) { dock.hidden = !value; if (!value) ideas.open = false; } };
+  return {
+    refresh, focus() { refresh(); input.focus(); thread.scrollTop = thread.scrollHeight; },
+    openHistory() { refresh(); },
+    setExpanded(value) { panel.hidden = !value; if (!value) hoverStep(null); refresh(); },
+  };
 }

@@ -421,7 +421,7 @@ async function streamOps(run, st, doc, { role = 'critic', system, content }) {
 
 // ---------- refine against the source, or edit by instruction ----------
 // Both are one undo step; an instruction edit is applied as asked (it is not scored against the source).
-export async function refine({ rounds = 1, instructions = '', style = '', highlights = [] } = {}) {
+export async function refine({ rounds = 1, instructions = '', style = '', highlights = [], selection = [] } = {}) {
   const doc = state.doc;
   const run = newRun('refine', instructions ? 'Edit with AI' : 'Refine against the original');
   run.highlights = highlights;
@@ -438,6 +438,8 @@ export async function refine({ rounds = 1, instructions = '', style = '', highli
         const points = highlights.flatMap(s => s.points), xs = points.map(p => p[0]), ys = points.map(p => p[1]);
         st.focus = { x: Math.min(...xs), y: Math.min(...ys), w: Math.max(...xs) - Math.min(...xs), h: Math.max(...ys) - Math.min(...ys) };
       }
+      const picked = selection.filter(id => doc.byId.has(id));
+      if (picked.length && !st.focus) { st.targets = picked.slice(-4); st.focus = bounds(doc.byId.get(picked.at(-1)), doc); }
       const before = await renderToCanvas(doc);
       st.images.push({ label: 'before', src: before.toDataURL() });
       const marked = highlights.length ? canvasWithHighlights(before, highlights).toDataURL('image/png') : null;
@@ -448,7 +450,8 @@ export async function refine({ rounds = 1, instructions = '', style = '', highli
       let sketching = null;
       if (real < 3) sketching = quickSketch(run, doc, instructions).catch(() => {});
       const attention = marked ? '\nThe first image is the clean diagram. The second is the same diagram with translucent yellow highlighter strokes drawn by the user to indicate the areas they want changed. Focus the request on those areas unless instructed otherwise. The highlights are request annotations, not diagram content: never add them to the result. Image coordinates match the page.\n' : '';
-      const text = `Request: ${instructions}\n${attention}${style ? `\nStyle reference (match this look: palette, fonts, shapes, line style):\n${style}\n` : ''}\nPage: ${doc.page.w} × ${doc.page.h} px.\nCurrent scene:\n${compactScene(doc)}`;
+      const about = picked.length ? `\nSelected elements (the request is about these unless it says otherwise): ${picked.join(', ')}\n` : '';
+      const text = `Request: ${instructions}\n${about}${attention}${style ? `\nStyle reference (match this look: palette, fonts, shapes, line style):\n${style}\n` : ''}\nPage: ${doc.page.w} × ${doc.page.h} px.\nCurrent scene:\n${compactScene(doc)}`;
       const { out, n } = await streamOps(run, st, doc, { role: 'editor', system: withCatalog(EDIT_SYSTEM, catalog()), content: [...(real || marked ? [{ type: 'image', mime: 'image/png', data: before.toDataURL('image/png').split(',')[1] }] : []), ...(marked ? [{ type: 'image', mime: 'image/png', data: marked.split(',')[1] }] : []), { type: 'text', text }] });
       run.sketchDone = true; await sketching; clearGhosts(doc);
       if (!out) throw new AIError('bad_reply', 'The reply could not be read; nothing was changed.');

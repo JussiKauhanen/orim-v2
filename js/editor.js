@@ -74,6 +74,22 @@ export function zoomBy(f, sx, sy) {
   cam.z = Math.max(0.05, Math.min(16, cam.z * f));
   cam.x = wx - sx / cam.z; cam.y = wy - sy / cam.z; applyCamera();
 }
+// Glide the camera so a world box sits in the visible area (left of `right` px, e.g. a side panel).
+let panFrame = 0;
+export function panTo(b, { right = 0, pad = 80 } = {}) {
+  stopEdgeTracking(); cancelAnimationFrame(panFrame);
+  const r = svg.getBoundingClientRect(), vw = r.width - right; if (!vw || !b) return;
+  const z = Math.min(cam.z, (vw - pad * 2) / Math.max(b.w, 1), (r.height - pad * 2) / Math.max(b.h, 1));
+  const from = { ...cam }, to = { z: Math.max(0.05, z) };
+  to.x = b.x + b.w / 2 - vw / 2 / to.z; to.y = b.y + b.h / 2 - r.height / 2 / to.z;
+  const t0 = performance.now(), ease = t => t < .5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+  const tick = now => {
+    const t = Math.min(1, (now - t0) / 420), k = ease(t);
+    for (const p of ['x', 'y', 'z']) cam[p] = from[p] + (to[p] - from[p]) * k;
+    applyCamera(); if (t < 1) panFrame = requestAnimationFrame(tick);
+  };
+  panFrame = requestAnimationFrame(tick);
+}
 const toW = e => { const r = svg.getBoundingClientRect(); return [(e.clientX - r.left) / cam.z + cam.x, (e.clientY - r.top) / cam.z + cam.y]; };
 export function viewCenter() { const r = svg.getBoundingClientRect(); return [cam.x + r.width / cam.z / 2, cam.y + r.height / cam.z / 2]; }
 
@@ -253,7 +269,7 @@ function onDown(e) {
 // Move the selection and whatever its enclosures carry; Alt-drag moves a copy of both.
 function startMove(wx, wy, copy, extra = {}) {
   beginChange();
-  if (copy) { const c = contentsOf(selected()); if (c.size) select([...c], true); duplicateSelection(0, true); }
+  if (copy) duplicateSelection(0, true);
   const moving = movingSet();
   drag = { type: 'move', sx: wx, sy: wy, orig: moving.map(clone), moved: false, home: enclosureFor(moving), carried: moving.length - state.selection.size, ...extra };
 }
@@ -694,7 +710,9 @@ export function deleteSelection() {
   clearSelection();
 }
 let clipboard = null;
-export function copySelection() { clipboard = selected().map(clone); try { navigator.clipboard.writeText(JSON.stringify({ orim: 1, elements: clipboard })); } catch (_) {} }
+// Copies take what boxes hold along with them, in drawing order.
+const withContents = () => { const ids = new Set(movingSet().map(e => e.id)); return state.doc.elements.filter(e => ids.has(e.id)); };
+export function copySelection() { clipboard = withContents().map(clone); try { navigator.clipboard.writeText(JSON.stringify({ orim: 1, elements: clipboard })); } catch (_) {} }
 export function paste(els = clipboard, offset = 24) {
   if (!els || !els.length) return;
   const map = new Map(els.map(e => [e.id, uid(e.kind === 'connector' ? 'c' : 'e')]));
@@ -706,19 +724,23 @@ export function paste(els = clipboard, offset = 24) {
   });
   regroup(out);
   change(d => d.elements.push(...out));
-  select(out.map(e => e.id));
+  // select the pasted boxes, not what they hold
+  const held = new Set(out.flatMap(e => [...contentsOf([state.doc.byId.get(e.id)])]));
+  select(out.map(e => e.id).filter(id => !held.has(id)));
   clipboard = out.map(clone);
 }
 export function duplicateSelection(offset = 24, inPlace = false) {
-  const els = selected().map(clone);
+  const picked = new Set(state.selection), els = withContents().map(clone);
   // include connectors between selected shapes
   const ids = new Set(els.map(e => e.id));
   for (const c of state.doc.elements) if (c.kind === 'connector' && !ids.has(c.id) && c.from.id && c.to.id && ids.has(c.from.id) && ids.has(c.to.id)) els.push(clone(c));
   const map = new Map(els.map(e => [e.id, uid()]));
   const out = els.map(e => { const n = clone(e); n.id = map.get(e.id); if (n.kind === 'connector') { for (const k of ['from', 'to']) if (n[k].id && map.has(n[k].id)) n[k].id = map.get(n[k].id); else if (!n[k].id) n[k] = { x: n[k].x + offset, y: n[k].y + offset }; if (n.points) n.points = n.points.map(p => ({ x: p.x + offset, y: p.y + offset })); } else { n.x += offset; n.y += offset; } return n; });
   regroup(out);
-  if (inPlace) { state.doc.elements.push(...out); select(out.map(e => e.id)); return; }
-  change(d => d.elements.push(...out)); select(out.map(e => e.id));
+  // select the copies of what was selected; copied contents ride along inside their copied boxes
+  const sel = out.filter((n, i) => picked.has(els[i].id)).map(e => e.id);
+  if (inPlace) { state.doc.elements.push(...out); select(sel); return; }
+  change(d => d.elements.push(...out)); select(sel);
 }
 export function reorder(where) {
   const ids = state.selection; if (!ids.size) return;

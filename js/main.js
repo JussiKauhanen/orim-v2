@@ -7,7 +7,6 @@ import { initPalette, kindPreview, setPaletteCollapsed } from './palette.js';
 import { initLibrary, lib, onLibraryChanged, saveTemplate, deleteTemplate, exportBundle, importBundle, removeLesson, forgetKind } from './library.js';
 import { sceneSvg, indexDoc } from './render.js';
 import { ensureFont } from './text.js';
-import { initAgents } from './ai/agents-ui.js';
 import { initAIChat } from './ai/chat-ui.js';
 import { replicate, refine, onRun, current, stop, styleGuide } from './ai/replicate.js';
 import { settings, hasKey, mockMode } from './ai/llm.js';
@@ -25,7 +24,7 @@ import { initAgentPresence } from './ai/agent-presence.js';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
-let aiChat, repImage, displayedProvider, highlighter, agentsUI;
+let aiChat, repImage, displayedProvider, highlighter;
 let sideCollapsed = true;
 function applyTheme() {
   let t = 'light'; try { t = localStorage.getItem('orim.theme') || 'light'; } catch (_) {}
@@ -190,7 +189,7 @@ async function boot() {
   for (const el of document.querySelectorAll('[data-icon]')) el.innerHTML = icon(el.dataset.icon);
   initEditor($('#stage'));
   const launcher = document.createElement('button'); launcher.id = 'aiLauncher'; launcher.className = 'ai-launcher';
-  launcher.type = 'button'; launcher.setAttribute('aria-label', 'Open AI chat'); launcher.setAttribute('aria-expanded', 'false'); launcher.setAttribute('aria-controls', 'aiComposerDock'); launcher.title = 'AI chat';
+  launcher.type = 'button'; launcher.setAttribute('aria-label', 'Open AI chat'); launcher.setAttribute('aria-expanded', 'false'); launcher.setAttribute('aria-controls', 'aiPanel'); launcher.title = 'AI chat';
   $('#stage').appendChild(launcher);
   updateProviderMark();
   launcher.addEventListener('click', openAI);
@@ -212,21 +211,19 @@ async function boot() {
   aiChat = initAIChat($('#stage'), {
     highlighter, onOpen: openAI, onClose: () => { setAIExpanded(false); $('#aiLauncher').focus(); },
     templates: () => lib.templates,
-    onSettings: openSettings, onAgents: () => { if (!agentsUI.show()) { openAI(); aiChat.openHistory(); } },
+    onSettings: openSettings,
+    onImage: (src, label) => { $('#imgDlgImg').src = src; $('#imgDlgCap').textContent = label; $('#imgDlg').showModal(); },
+    panelWidth: () => { const p = $('#aiPanel'); return p && !p.hidden ? p.offsetWidth + 24 : 0; },
     onAttach: chooseReplicationImage,
     onRefine: () => { if (!hasKey()) return openSettings(); openAI(); refine({ rounds: 1 }); },
-    onSend: (instructions, templateId) => {
+    onSend: (instructions, templateId, selection = []) => {
       if (!hasKey()) { openSettings(); return false; }
       const t = lib.templates.find(t => t.id === templateId);
       if (t) change(d => { d.page.background = t.doc.page.background; d.page.pattern = t.doc.page.pattern || null; });
       const highlights = highlighter.snapshot(); highlighter.setActive(false);
-      refine({ rounds: 1, instructions, style: t ? styleGuide(t.doc) : '', highlights });
+      refine({ rounds: 1, instructions, style: t ? styleGuide(t.doc) : '', highlights, selection });
       return true;
     },
-  });
-  const popups = document.createElement('section'); popups.id = 'agents'; popups.className = 'agent-popups'; popups.hidden = true; popups.setAttribute('aria-label', 'Agent activity'); $('#stage').appendChild(popups);
-  agentsUI = initAgents(popups, {
-    onImage: (src, label) => { $('#imgDlgImg').src = src; $('#imgDlgCap').textContent = label; $('#imgDlg').showModal(); },
   });
   await initLibrary();
   initPalette($('#palette'));

@@ -86,7 +86,9 @@ export function initContextToolbar(stage, { onProperties } = {}) {
     const b = unionBounds(els.map(el => bounds(el, state.doc))), r = stage.getBoundingClientRect(); if (!b || !r.width) return;
     const w = toolbar.offsetWidth, h = toolbar.offsetHeight, gap = 12;
     const clamp = (v, max) => Math.max(8, Math.min(v, Math.max(8, max - 8)));
-    let x = clamp((b.x + b.w / 2 - cam.x) * cam.z - w / 2, r.width - w);
+    // keep clear of the AI panel when it is open
+    const panel = stage.querySelector('#aiPanel:not([hidden])'), avail = panel && innerWidth > 900 ? r.width - panel.offsetWidth - 24 : r.width;
+    let x = clamp((b.x + b.w / 2 - cam.x) * cam.z - w / 2, avail - w);
     let y = (b.y - cam.y) * cam.z - h - gap;
     if (y < 8) y = (b.y + b.h - cam.y) * cam.z + gap;
     y = clamp(y, r.height - h);
