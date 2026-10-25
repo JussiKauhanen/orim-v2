@@ -1,18 +1,21 @@
-// One settings draft, two views. Tabs only change visibility; choosing a quality
-// preset is the only action that replaces the advanced model and run controls.
+// AI settings in one view: pick a provider (each shows whether its key is saved), paste its
+// key inline, choose quality for that provider, and open Advanced only to fine-tune.
+// Everything edits one draft that is applied on Save.
 import { settings, saveSettings, PROVIDERS, defaultRoleModels, qualityPreset } from './ai/llm.js';
 import { lib, folderSupported, connectFolder, disconnectFolder, syncAllToFolder } from './library.js';
 import { icon } from './icons.js';
 import { providerNames as PROVIDER_NAMES, providerMark as providerIcon } from './ai/provider-ui.js';
 
 const ROLES = { analyst: 'Vision analyst', designer: 'Shape designer', critic: 'Critic', editor: 'AI editor', sketch: 'Quick sketch' };
-const TIERS = { cheap: ['Cheap', 'Quick edits, less checking'], medium: ['Medium', 'A balance of quality and cost'], high: ['High', 'More thought and careful checking'] };
-const TIER_IDS = Object.keys(TIERS);
+const TIERS = { cheap: ['Cheap', 'Fast drafts and small edits'], medium: ['Medium', 'Balanced quality and cost'], high: ['High', 'Most careful thinking and checking'] };
+const MAKERS = { anthropic: 'Anthropic', openai: 'OpenAI', google: 'Google' };
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const copy = value => JSON.parse(JSON.stringify(value));
 const $ = selector => dialog.querySelector(selector);
-let dialog, draft, connecting = false, toast = () => {}, onSaved = () => {};
+const external = '<svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 3h4v4M13 3 7 9M6 3H3v10h10v-3"/></svg>';
+let dialog, draft, toast = () => {}, onSaved = () => {};
 const tuning = s => ({ effort: { ...s.effort }, iterations: s.iterations, designAttempts: s.designAttempts, budget: s.budget, measure: s.measure });
+const modelName = (p, id) => PROVIDERS[p].models.find(m => m.id === id)?.name || id;
 
 export function initSettings(options = {}) {
   toast = options.toast || (() => {}); onSaved = options.onSaved || (() => {});
@@ -20,57 +23,57 @@ export function initSettings(options = {}) {
   dialog.classList.add('settings-dialog');
   dialog.setAttribute('aria-labelledby', 'settingsTitle');
   dialog.innerHTML = `<form method="dialog" id="settingsForm" novalidate>
-    <header class="settings-heading"><div><h2 id="settingsTitle">Bring your AI</h2><p>Your favourite AI. Your canvas.</p></div><button type="button" class="ib settings-close" data-settings-close aria-label="Close settings">${icon('close')}</button></header>
-    <div class="settings-tabs" role="tablist" aria-label="Settings views"><button type="button" role="tab" id="settingsBasicTab" data-settings-tab="basic" aria-controls="settingsBasic" aria-selected="true">Bring your AI</button><button type="button" role="tab" id="settingsAdvancedTab" data-settings-tab="advanced" aria-controls="settingsAdvanced" aria-selected="false" tabindex="-1">Advanced</button></div>
-    <section class="settings-provider" aria-label="Your AI provider">
-      <div id="providerChoices"><div class="settings-section-heading"><h3>Choose your AI</h3><span>Connect with an API key.</span></div>
-        <div class="provider-cards">${Object.entries(PROVIDER_NAMES).map(([id, name]) => `<article class="provider-card ${id}"><div class="provider-card-name"><span class="provider-badge">${providerIcon(id)}</span><b>${name}${id === 'openai' ? '<small>OpenAI</small>' : ''}</b></div><div class="provider-card-actions"><button type="button" class="btn provider-select" data-provider-select="${id}" aria-label="Select ${name}">Select</button><button type="button" class="provider-delete" data-provider-delete="${id}" aria-label="Delete ${name} key" hidden>${icon('trash')}</button></div><span class="provider-connected" data-provider-connected="${id}" hidden>Key saved</span></article>`).join('')}</div>
+    <header class="settings-heading"><div><h2 id="settingsTitle">AI settings</h2><p>Choose the AI that draws with you. Your key stays in this browser; usage is billed by the provider.</p></div><button type="button" class="ib settings-close" data-settings-close aria-label="Close settings">${icon('close')}</button></header>
+    <section class="settings-section" aria-labelledby="settingsAiTitle">
+      <h3 id="settingsAiTitle">Your AI</h3>
+      <div class="provider-list" role="radiogroup" aria-labelledby="settingsAiTitle">${Object.entries(PROVIDER_NAMES).map(([id, name]) => `
+        <div class="provider-row" data-provider="${id}">
+          <button type="button" class="provider-pick" role="radio" aria-checked="false" data-provider-select="${id}">
+            <span class="provider-radio" aria-hidden="true"></span>
+            <span class="provider-badge">${providerIcon(id)}</span>
+            <span class="provider-text"><b>${name}</b><small>${MAKERS[id]}</small></span>
+            <span class="provider-status" data-provider-status="${id}"></span>
+          </button>
+          <button type="button" class="provider-delete" data-provider-delete="${id}" aria-label="Delete ${name} key" title="Delete key" hidden>${icon('trash')}</button>
+          <div class="provider-key" data-provider-key="${id}" hidden></div>
+        </div>`).join('')}</div>
+    </section>
+    <section class="settings-section" aria-labelledby="settingsQualityTitle">
+      <div class="settings-section-heading"><h3 id="settingsQualityTitle">Quality &amp; cost</h3><span id="settingsCustom" class="settings-custom" hidden>Custom setup · <button type="button" data-quality-reset>Use Medium</button></span></div>
+      <div class="quality-cards" role="radiogroup" aria-labelledby="settingsQualityTitle">${Object.entries(TIERS).map(([id, [label, help]]) => `
+        <button type="button" class="quality-card" role="radio" aria-checked="false" data-quality="${id}"><b>${label}</b><span class="quality-model"></span><small>${help}</small><span class="quality-limit"></span></button>`).join('')}</div>
+    </section>
+    <details class="settings-advanced" id="settingsAdvanced"><summary><span>Advanced</span><small>Models per agent, effort, checking and the library folder</small>${icon('chevron')}</summary>
+      <div class="settings-advanced-body">
+        <div class="settings-models"><div class="settings-model-head"><span>Agent</span><span>Model</span><span>Effort</span></div>${Object.entries(ROLES).map(([id, name]) => `<div class="settings-model-row"><label for="setM-${id}">${name}</label><select id="setM-${id}" aria-label="${name} model"></select><select id="setE-${id}" aria-label="${name} effort">${(id === 'sketch' ? ['low', 'medium', 'high'] : ['low', 'medium', 'high', 'xhigh', 'max']).map(e => `<option>${e}</option>`).join('')}</select></div>`).join('')}</div>
+        <p class="settings-help">Prices are input / output dollars per million tokens. Each provider uses its closest supported effort level.</p>
+        <div class="settings-limits"><label class="f"><span>Critic rounds</span><input type="number" id="setIter" min="0" max="10" required></label><label class="f"><span>Attempts per shape</span><input type="number" id="setAttempts" min="1" max="6" required></label><label class="f"><span>Budget per run ($)</span><input type="number" id="setBudget" min="0" step="0.5" required></label></div>
+        <label class="chk settings-measure"><input type="checkbox" id="setMeasure"> Snap boxes and colours to the image pixels</label>
+        <div class="settings-library"><h3>Library folder</h3><p>Save learned shapes, lessons and templates to a folder so you can reuse and share them.</p><div id="folderRow"></div><p id="settingsFolderError" class="err" role="status" hidden></p></div>
       </div>
-      <select id="setProvider" aria-label="Provider" hidden>${Object.entries(PROVIDERS).map(([id, p]) => `<option value="${id}">${esc(p.name)}</option>`).join('')}</select>
-      <div id="providerConnection" class="provider-connection" hidden>
-        <div class="provider-connection-heading"><div class="provider-card-name"><span class="provider-badge" id="settingsProviderLogo"></span><div><b id="settingsProviderName"></b><span>Connect your account</span></div></div><button type="button" class="settings-change-provider" data-provider-change>Change</button></div>
-        <div class="settings-key-heading"><label for="setKey" id="settingsKeyLabel">API key</label><a id="setKeyLink" target="_blank" rel="noopener">Get an API key <svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M9 3h4v4M13 3 7 9M6 3H3v10h10v-3"/></svg></a></div>
-        <div class="settings-key"><input id="setKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" aria-labelledby="settingsKeyLabel"><button type="button" data-key-toggle aria-label="Show API key" aria-pressed="false">Show</button></div>
-        <button type="button" class="provider-delete-key" id="settingsDeleteKey" hidden>${icon('trash')}Delete key</button>
-      </div>
-      <p class="settings-key-note">Your key stays in this browser. Usage is billed by your AI provider.</p>
-    </section>
-    <section id="settingsBasic" class="settings-basic" role="tabpanel" aria-labelledby="settingsBasicTab">
-      <div class="settings-section-heading"><h3>Quality &amp; cost</h3><span id="settingsCustom" class="settings-custom" hidden>Custom setup</span></div>
-      <div class="quality-control"><div class="quality-control-heading"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="m13 2-9 12h7l-1 8 10-13h-7z"/></svg><div><b id="settingsQualityLabel">Medium</b><span id="settingsQualityModel"></span></div><button type="button" data-quality-reset aria-label="Reset quality to Medium" title="Reset to Medium">${icon('refine')}</button></div>
-      <div class="quality-slider"><input type="range" id="setQuality" name="settings-quality" min="0" max="2" step="1" value="1" aria-label="Quality and cost" aria-describedby="settingsQualityDescription"><div class="quality-ticks" aria-hidden="true"><i></i><i></i><i></i></div><div class="quality-stops" aria-hidden="true">${Object.entries(TIERS).map(([id, [label]]) => `<span data-quality-stop="${id}">${label}</span>`).join('')}</div></div></div>
-      <p id="settingsQualityDescription" class="settings-quality-description"></p>
-      <p id="settingsQualityHelp" class="settings-quality-help"></p>
-    </section>
-    <section id="settingsAdvanced" class="settings-advanced" role="tabpanel" aria-labelledby="settingsAdvancedTab" hidden>
-      <div class="settings-section-heading"><h3>Models &amp; effort</h3><span id="settingsAdvancedState" class="settings-custom"></span></div>
-      <div class="settings-models"><div class="settings-model-head"><span>Agent</span><span>Model</span><span>Effort</span></div>${Object.entries(ROLES).map(([id, name]) => `<div class="settings-model-row"><label for="setM-${id}">${name}</label><select id="setM-${id}" aria-label="${name} model"></select><select id="setE-${id}" aria-label="${name} effort">${(id === 'sketch' ? ['low', 'medium', 'high'] : ['low', 'medium', 'high', 'xhigh', 'max']).map(e => `<option>${e}</option>`).join('')}</select></div>`).join('')}</div>
-      <p class="settings-help">Prices are input / output dollars per million tokens. Each provider uses its closest supported effort level.</p>
-      <div class="settings-section-heading"><h3>Checking &amp; limits</h3></div><div class="settings-limits"><label class="f"><span>Critic rounds</span><input type="number" id="setIter" min="0" max="10" required></label><label class="f"><span>Attempts per shape</span><input type="number" id="setAttempts" min="1" max="6" required></label><label class="f"><span>Budget per run ($)</span><input type="number" id="setBudget" min="0" step="0.5" required></label></div>
-      <label class="chk settings-measure"><input type="checkbox" id="setMeasure"> Snap boxes and colours to the image pixels</label>
-      <div class="settings-library"><h3>Library folder</h3><p>Save learned shapes, lessons and templates to a folder so you can reuse and share them.</p><div id="folderRow"></div><p id="settingsFolderError" class="err" role="status" hidden></p></div>
-    </section>
-    <footer class="settings-footer"><span id="settingsSaveHint">Changes apply when you save.</span><button type="button" class="btn" data-settings-close>Cancel</button><button type="submit" class="btn primary" id="setSave">Save settings</button></footer>
+    </details>
+    <footer class="settings-footer"><span id="settingsSaveHint">Changes apply when you save.</span><button type="button" class="btn" data-settings-close>Cancel</button><button type="submit" class="btn primary" id="setSave">Save</button></footer>
   </form>`;
   dialog.addEventListener('click', handleClick);
-  dialog.addEventListener('change', handleChange);
   dialog.addEventListener('input', e => {
-    if (e.target.id === 'setQuality') chooseQuality(TIER_IDS[+e.target.value]);
+    if (e.target.id === 'setKey') { draft.keys[draft.provider] = e.target.value.trim(); if (!draft.keys[draft.provider]) delete draft.keys[draft.provider]; paintProviders(); }
     else if (e.target.closest('#settingsAdvanced') && e.target.matches('input, select')) markCustom();
   });
+  dialog.addEventListener('change', e => { if (e.target.closest('#settingsAdvanced') && e.target.matches('input, select')) markCustom(); });
   $('#settingsForm').addEventListener('submit', e => {
     e.preventDefault();
     const invalid = $('#settingsForm').querySelector(':invalid');
-    if (invalid) { if (invalid.closest('#settingsAdvanced')) setTab('advanced'); $('#settingsForm').reportValidity(); return; }
+    if (invalid) { $('#settingsAdvanced').open = true; $('#settingsForm').reportValidity(); return; }
     capture(); draft.roles = { ...draft.providerRoles[draft.provider] };
     saveSettings(draft); onSaved(draft); dialog.close(); toast('Settings saved');
   });
   dialog.addEventListener('close', () => { if (!dialog.open) draft = null; });
-  dialog.querySelector('.settings-tabs').addEventListener('keydown', e => {
-    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) return;
-    e.preventDefault();
-    const advanced = e.key === 'End' || (e.key !== 'Home' && e.target.dataset.settingsTab !== 'advanced');
-    setTab(advanced ? 'advanced' : 'basic'); $(`[data-settings-tab="${advanced ? 'advanced' : 'basic'}"]`).focus();
+  // arrow keys move between providers and between quality levels, like radio buttons
+  dialog.addEventListener('keydown', e => {
+    const group = e.target.closest('[role=radiogroup]'); if (!group || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) return;
+    const items = [...group.querySelectorAll('[role=radio]')], i = items.indexOf(e.target.closest('[role=radio]')); if (i < 0) return;
+    e.preventDefault(); const next = items[(i + (['ArrowUp', 'ArrowLeft'].includes(e.key) ? -1 : 1) + items.length) % items.length];
+    next.click(); next.focus();
   });
   return { openSettings };
 }
@@ -93,98 +96,84 @@ export function openSettings() {
     draft.providerTuning[provider] = { ...copy(base), ...saved, effort: { ...base.effort, ...saved.effort } };
     draft.providerQuality[provider] = Object.keys(TIERS).find(tier => matchesPreset(provider, tier)) || 'custom';
   }
-  connecting = !!draft.keys[draft.provider];
-  fillProvider(); setTab('basic'); renderFolder();
+  $('#settingsAdvanced').open = false;
+  fillProvider(); renderFolder();
   if (!dialog.open) dialog.showModal();
+  if (!draft.keys[draft.provider]) $('#setKey')?.focus();
 }
 
-function setTab(tab) {
-  for (const b of dialog.querySelectorAll('[data-settings-tab]')) {
-    const selected = b.dataset.settingsTab === tab;
-    b.setAttribute('aria-selected', selected); b.tabIndex = selected ? 0 : -1;
+// The provider list: selection, key status and the key field under the selected row.
+function paintProviders() {
+  const p = draft.provider;
+  for (const row of dialog.querySelectorAll('.provider-row')) {
+    const id = row.dataset.provider, on = id === p, has = !!draft.keys[id], saved = has && settings().keys[id] === draft.keys[id];
+    row.classList.toggle('selected', on);
+    row.querySelector('.provider-pick').setAttribute('aria-checked', String(on));
+    row.querySelector('.provider-pick').tabIndex = on ? 0 : -1;
+    const status = row.querySelector('.provider-status');
+    status.className = 'provider-status ' + (saved ? 'saved' : has ? 'ready' : 'missing');
+    status.textContent = saved ? 'Key saved' : has ? 'Key added · save to apply' : on ? 'Paste your key below' : 'No key';
+    row.querySelector('.provider-delete').hidden = !has;
   }
-  $('#settingsBasic').hidden = tab !== 'basic'; $('#settingsAdvanced').hidden = tab !== 'advanced';
-  $('#settingsTitle').textContent = tab === 'basic' ? 'Bring your AI' : 'Advanced settings';
 }
 function fillProvider() {
   const p = draft.provider, provider = PROVIDERS[p], roles = draft.providerRoles[p], tune = draft.providerTuning[p];
-  $('#setProvider').value = p;
-  $('#providerChoices').hidden = connecting; $('#providerConnection').hidden = !connecting;
-  for (const marker of dialog.querySelectorAll('[data-provider-connected]')) marker.hidden = !draft.keys[marker.dataset.providerConnected];
-  for (const button of dialog.querySelectorAll('[data-provider-delete]')) button.hidden = !draft.keys[button.dataset.providerDelete];
-  for (const card of dialog.querySelectorAll('.provider-card')) card.classList.toggle('selected', card.classList.contains(p) && !!draft.keys[p]);
-  $('#settingsDeleteKey').hidden = !draft.keys[p];
-  $('#settingsProviderLogo').innerHTML = providerIcon(p); $('#settingsProviderName').textContent = PROVIDER_NAMES[p];
-  $('#setKey').value = draft.keys[p] || ''; $('#setKey').placeholder = provider.keyHint || ''; $('#setKey').type = 'password';
-  const reveal = $('[data-key-toggle]'); reveal.textContent = 'Show'; reveal.setAttribute('aria-label', 'Show API key'); reveal.setAttribute('aria-pressed', 'false');
+  for (const box of dialog.querySelectorAll('[data-provider-key]')) { box.hidden = true; box.innerHTML = ''; }
   const keyName = p === 'openai' ? 'OpenAI' : PROVIDER_NAMES[p];
-  $('#settingsKeyLabel').textContent = keyName + ' API key';
-  $('#setKeyLink').href = provider.console; $('#setKeyLink').firstChild.textContent = `Get ${p === 'openai' ? 'an' : 'a'} ${keyName} API key `;
-  $('.provider-connection-heading .provider-card-name > div > span').textContent = p === 'openai' ? 'ChatGPT models · OpenAI API key' : 'Connect with your API key';
+  const box = $(`[data-provider-key="${p}"]`); box.hidden = false;
+  box.innerHTML = `<div class="settings-key-heading"><label for="setKey">${esc(keyName)} API key</label><a href="${esc(provider.console)}" target="_blank" rel="noopener">Get ${p === 'openai' ? 'an' : 'a'} key ${external}</a></div>
+    <div class="settings-key"><input id="setKey" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="${esc(provider.keyHint || '')}"><button type="button" data-key-toggle aria-label="Show API key" aria-pressed="false">Show</button></div>${p === 'openai' ? '<p class="settings-help">ChatGPT models through the OpenAI API, billed separately from a ChatGPT subscription.</p>' : ''}`;
+  $('#setKey').value = draft.keys[p] || '';
   for (const role of Object.keys(ROLES)) {
     $('#setM-' + role).innerHTML = provider.models.map(m => `<option value="${esc(m.id)}">${esc(m.name)} · $${m.in} / $${m.out}</option>`).join('');
     $('#setM-' + role).value = provider.models.some(m => m.id === roles[role]) ? roles[role] : defaultRoleModels(p)[role];
     $('#setE-' + role).value = tune.effort[role];
   }
   $('#setIter').value = tune.iterations; $('#setAttempts').value = tune.designAttempts; $('#setBudget').value = tune.budget; $('#setMeasure').checked = tune.measure;
-  updateQuality();
+  paintProviders(); updateQuality();
 }
 function capture() {
-  const p = draft.provider;
-  const key = $('#setKey').value.trim();
+  const p = draft.provider, key = $('#setKey')?.value.trim();
   if (key) draft.keys[p] = key; else delete draft.keys[p];
   draft.providerRoles[p] = Object.fromEntries(Object.keys(ROLES).map(r => [r, $('#setM-' + r).value]));
   const current = { effort: Object.fromEntries(Object.keys(ROLES).map(r => [r, $('#setE-' + r).value])), iterations: +$('#setIter').value, designAttempts: +$('#setAttempts').value, budget: +$('#setBudget').value, measure: $('#setMeasure').checked };
   draft.providerTuning[p] = current; Object.assign(draft, copy(current));
 }
+// Quality cards show what each level means for the selected provider.
 function updateQuality() {
-  const p = draft.provider, quality = draft.providerQuality[p], custom = quality === 'custom';
-  const slider = $('#setQuality');
-  slider.value = custom ? 1 : TIER_IDS.indexOf(quality);
-  slider.setAttribute('aria-valuetext', custom ? 'Custom settings' : TIERS[quality][0]);
-  slider.style.setProperty('--quality-position', (+slider.value * 50) + '%');
-  for (const label of dialog.querySelectorAll('[data-quality-stop]')) label.classList.toggle('on', !custom && label.dataset.qualityStop === quality);
-  for (const [i, dot] of [...dialog.querySelectorAll('.quality-ticks i')].entries()) dot.classList.toggle('on', i === +slider.value);
-  $('#settingsCustom').hidden = !custom;
-  $('#settingsQualityLabel').textContent = custom ? 'Custom' : TIERS[quality][0];
-  $('#settingsQualityModel').textContent = PROVIDERS[p].models.find(m => m.id === $('#setM-editor').value)?.name || PROVIDER_NAMES[p];
-  $('#settingsAdvancedState').textContent = custom ? 'Custom setup' : TIERS[quality][0] + ' preset';
-  $('#settingsQualityDescription').textContent = custom ? 'Your Advanced settings are active.' : `${TIERS[quality][1]} · $${qualityPreset(p, quality).budget} limit per run`;
-  $('#settingsQualityHelp').textContent = custom ? 'Move the slider to use a preset.' : 'Models, thinking effort and checking are tuned together. You can fine-tune them in Advanced.';
+  const p = draft.provider, quality = draft.providerQuality[p];
+  for (const card of dialog.querySelectorAll('[data-quality]')) {
+    const tier = card.dataset.quality, preset = qualityPreset(p, tier), on = tier === quality;
+    card.classList.toggle('selected', on); card.setAttribute('aria-checked', String(on)); card.tabIndex = on || (quality === 'custom' && tier === 'medium') ? 0 : -1;
+    card.querySelector('.quality-model').textContent = modelName(p, preset.roles.editor);
+    card.querySelector('.quality-limit').textContent = `Up to $${preset.budget} per run`;
+  }
+  $('#settingsCustom').hidden = quality !== 'custom';
 }
 function chooseQuality(tier) {
   capture(); const p = draft.provider, preset = qualityPreset(p, tier);
   draft.providerRoles[p] = { ...preset.roles }; draft.providerTuning[p] = tuning(preset); draft.providerQuality[p] = tier;
   fillProvider();
 }
-function markCustom() {
-  draft.providerQuality[draft.provider] = 'custom'; updateQuality();
-}
-function handleChange(e) {
-  if (!draft) return;
-  const target = e.target;
-  if (target.name === 'settings-provider' || target.id === 'setProvider') {
-    const next = target.value;
-    if (next === draft.provider) return;
-    capture(); draft.provider = next; connecting = true; fillProvider();
-  } else if (target.name === 'settings-quality') {
-    chooseQuality(TIER_IDS[+target.value]);
-  } else if (target.closest('#settingsAdvanced') && target.matches('input, select')) markCustom();
-}
+function markCustom() { draft.providerQuality[draft.provider] = 'custom'; updateQuality(); }
+
 async function handleClick(e) {
   if (e.target.closest('[data-settings-close]')) { dialog.close(); return; }
-  const tab = e.target.closest('[data-settings-tab]'); if (tab) { setTab(tab.dataset.settingsTab); return; }
+  const tier = e.target.closest('[data-quality]'); if (tier) { chooseQuality(tier.dataset.quality); return; }
   if (e.target.closest('[data-quality-reset]')) { chooseQuality('medium'); return; }
-  const remove = e.target.closest('[data-provider-delete], #settingsDeleteKey');
+  const remove = e.target.closest('[data-provider-delete]');
   if (remove) {
-    capture(); const provider = remove.dataset.providerDelete || draft.provider;
-    delete draft.keys[provider]; fillProvider();
+    capture(); delete draft.keys[remove.dataset.providerDelete]; fillProvider();
     $('#settingsSaveHint').textContent = 'Key removed. Save to apply.';
     return;
   }
-  const provider = e.target.closest('[data-provider-select]');
-  if (provider) { capture(); draft.provider = provider.dataset.providerSelect; connecting = true; fillProvider(); $('#setKey').focus(); return; }
-  if (e.target.closest('[data-provider-change]')) { capture(); connecting = false; fillProvider(); $('[data-provider-select="' + draft.provider + '"]').focus(); return; }
+  const pick = e.target.closest('[data-provider-select]');
+  if (pick) {
+    const next = pick.dataset.providerSelect; if (next === draft.provider) return;
+    capture(); draft.provider = next; fillProvider();
+    if (!draft.keys[next]) $('#setKey').focus();
+    return;
+  }
   const reveal = e.target.closest('[data-key-toggle]');
   if (reveal) { const show = $('#setKey').type === 'password'; $('#setKey').type = show ? 'text' : 'password'; reveal.textContent = show ? 'Hide' : 'Show'; reveal.setAttribute('aria-label', show ? 'Hide API key' : 'Show API key'); reveal.setAttribute('aria-pressed', show); return; }
   const folder = e.target.closest('#folderOn, #folderOff, #folderSync'); if (!folder) return;
