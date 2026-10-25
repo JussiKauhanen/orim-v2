@@ -2,7 +2,8 @@
 // each line lands on the canvas at once, and the layout engine tidies up as they arrive.
 import { complete, AIError } from './llm.js';
 import { newRun, step, done, charge, fail, update } from './replicate.js';
-import { DRAW_SYSTEM } from './prompts.js';
+import { drawSystem } from './prompts.js';
+import { allKinds } from '../kinds.js';
 import { renderToCanvas } from './raster.js';
 import { state, emit, beginChange, endChange, scheduleSave } from '../store.js';
 import { indexDoc, framed } from '../render.js';
@@ -79,7 +80,7 @@ export async function draw({ instructions = '', image = null, selection = [], vi
       editing ? `Current diagram:\n${serialize(doc)}` : 'The canvas is empty.',
     ].filter(Boolean).join('\n\n');
     const content = [...(image ? [{ type: 'image', mime: image.mime, data: image.data }] : []), { type: 'text', text }];
-    const res = await complete({ role: 'editor', effort: 'low', maxTokens: 8000, system: DRAW_SYSTEM, content, signal: run.ctl.signal,
+    const res = await complete({ role: 'editor', effort: 'low', maxTokens: 8000, system: drawSystem(kindList()), content, signal: run.ctl.signal,
       onThinking: t => { st.thinking += t; update(); }, onText: t => handle(reader.push(t)) });
     handle(reader.end());
     charge(run, res, st);
@@ -115,6 +116,11 @@ export async function tidy() {
   doc.manualLayout = false;
   await makeLayout(doc, null).now();
   endChange();
+}
+
+// Every library kind except the vendor icons (those are named by product), learned ones included.
+function kindList() {
+  return allKinds().filter(k => !k.pack).map(k => `${k.id} (${k.name})`).join(', ');
 }
 
 // An image for the model: at most 1600 px on the long side, as base64 PNG.

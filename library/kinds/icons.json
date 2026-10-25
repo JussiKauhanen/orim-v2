@@ -2494,5 +2494,45 @@
    "w",
    "24"
   ]
+ },
+ {
+  "id": "menu",
+  "name": "Menu",
+  "category": "icons",
+  "tags": [
+   "menu",
+   "hamburger",
+   "navigation",
+   "lines"
+  ],
+  "description": "hamburger menu icon (line icon on a 24 grid; stroke = line colour, fill = optional fill)",
+  "size": [
+   48,
+   48
+  ],
+  "viewBox": [
+   0,
+   0,
+   24,
+   24
+  ],
+  "aspect": "meet",
+  "style": {
+   "fill": "none",
+   "stroke": "#1f2328",
+   "strokeWidth": 2
+  },
+  "svg": "<g fill='none' stroke='{stroke}' stroke-width='{rawSw}' stroke-linecap='round'><path d='M4 7h16M4 12h16M4 17h16'/></g>",
+  "textBox": [
+   "-40",
+   "h+4",
+   "w+80",
+   "24"
+  ],
+  "text": {
+   "size": 13,
+   "color": "#1f2328",
+   "valign": "top"
+  }
  }
 ]

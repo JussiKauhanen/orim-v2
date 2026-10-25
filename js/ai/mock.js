@@ -40,7 +40,37 @@ export async function mockComplete({ role, system, content, onText, onThinking, 
   }
   if (/^You help a solution architect/.test(system || '')) {
     const editing = /Current diagram:/.test(prompt);
-    const lines = editing ? [
+    const screens = !editing && /screen|mobile|wireframe|mock ?up/i.test(prompt);
+    const tab = (s, active) => [{ group: s + '-tabs', in: s, layout: 'row', dock: 'bottom', align: 'spread', color: '#f6f7f9', pad: 10 }, ...['Home', 'Search', 'Profile'].map((t, i) => ({ node: `${s}-tab${i}`, in: s + '-tabs', kind: 'text', label: t, size: 11, weight: i === active ? 700 : 400, align: 'center', w: 70 }))];
+    const lines = screens ? [
+      { say: 'Three phone screens: sign in, browse products, and your profile (mock).' },
+      { title: 'Shop app screens' },
+      { group: 'login', label: 'Login', device: 'phone' },
+      { node: 'logo', in: 'login', kind: 'image-placeholder', w: 64, h: 64 },
+      { node: 'login-h', in: 'login', kind: 'text', label: 'Sign in', size: 22, weight: 700 },
+      { node: 'email', in: 'login', kind: 'input', label: 'Email' },
+      { node: 'password', in: 'login', kind: 'input', label: 'Password' },
+      { node: 'remember', in: 'login', kind: 'checkbox', label: 'Remember me' },
+      { node: 'signin', in: 'login', kind: 'button', label: 'Sign in', color: '#2b2f36', textColor: '#ffffff' },
+      { node: 'forgot', in: 'login', kind: 'text', label: 'Forgot password?', size: 12, textColor: '#4f6bff' },
+      { group: 'products', label: 'Products', device: 'phone' },
+      { group: 'p-bar', in: 'products', layout: 'row', dock: 'top', color: '#f6f7f9', pad: 12 },
+      { node: 'p-menu', in: 'p-bar', kind: 'menu' }, { node: 'p-title', in: 'p-bar', kind: 'text', label: 'Shop', weight: 700, align: 'center', grow: true }, { node: 'p-cart', in: 'p-bar', kind: 'cart' },
+      { node: 'p-search', in: 'products', kind: 'input', label: 'Search products' },
+      { node: 'p-hero', in: 'products', kind: 'image-placeholder', h: 120 },
+      ...['Running shoes · €89', 'Rain jacket · €129', 'Daypack · €59'].map((t, i) => [{ group: 'row' + i, in: 'products', layout: 'row', color: '#f3f4f6', radius: 10, pad: 10 }, { node: 'img' + i, in: 'row' + i, kind: 'image-placeholder', w: 44, h: 44 }, { node: 'txt' + i, in: 'row' + i, kind: 'text', label: t, grow: true }, { node: 'go' + i, in: 'row' + i, kind: 'arrow-right' }]).flat(),
+      ...tab('products', 0),
+      { group: 'profile', label: 'Profile', device: 'phone', align: 'center' },
+      { node: 'avatar', in: 'profile', kind: 'ellipse', w: 72, h: 72, color: '#d9dce1' },
+      { node: 'name', in: 'profile', kind: 'text', label: 'Jane Doe', size: 18, weight: 700, align: 'center' },
+      { node: 'pr-email', in: 'profile', kind: 'input', label: 'jane@example.com' },
+      { node: 'notif', in: 'profile', kind: 'toggle', label: 'Notifications' },
+      { node: 'save', in: 'profile', kind: 'button', label: 'Save', color: '#2b2f36', textColor: '#ffffff' },
+      ...tab('profile', 2),
+      { edge: ['signin', 'products'], label: 'Sign in' },
+      { edge: ['products-tab2', 'profile'], label: 'Open profile' },
+      { say: 'Each screen does one job; the tab bar keeps the main places one tap away.' },
+    ] : editing ? [
       { say: 'Adding a Key Vault for the app secrets and marking the sync as scheduled (mock edit).' },
       { node: 'kv', label: 'Key Vault', icon: 'azure:Key Vaults', in: 'azure', note: 'Keeps secrets out of app settings and code.' },
       { edge: ['app', 'kv'], label: 'Reads secrets', dashed: true },

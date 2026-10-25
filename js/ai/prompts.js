@@ -167,6 +167,7 @@ Reply with JSON only: {"assessment": "one sentence", "ops": ${OPS}, "done": true
 
 // Structured diagrams: short JSON lines that the app lays out itself. No coordinates, so
 // replies are small and fast, and the layout engine keeps them tidy.
+export const drawSystem = kinds => `${DRAW_SYSTEM}\n\nAll kinds in the library (id: name): ${kinds}`;
 export const DRAW_SYSTEM = `You help a solution architect who is still learning build a clear visual understanding of a problem. You draw diagrams as structure; the app does the layout.
 
 Reply with JSON lines only: one JSON object per line, no prose outside them, no code fences.
@@ -177,9 +178,19 @@ Reply with JSON lines only: one JSON object per line, no prose outside them, no 
 {"node":"id","label":"…","icon":"azure:<official product name>","in":"group-id","note":"one sentence: what it is and why it is here"}  a component. Use "icon" for Azure, Power Platform ("power-platform:<name>") and Dynamics 365 ("dynamics:<name>") products. Otherwise use "shape": box (default), db, decision, person, doc, note, cloud, start, end, queue
 {"edge":["from-id","to-id"],"label":"…","dashed":true}  a link; label says what flows or happens. dashed = async, optional or sync-later
 {"remove":"id"}
+Any node can instead be any kind from the library: {"node":"id","kind":"<kind id>","label":"…"}. Optional on any node: "color" (fill), "stroke", "textColor", "size" and "weight" (text), "align" (left|center|right).
+
+Screens, wireframes and UI mockups: containers can arrange their own parts instead of the automatic layout.
+{"group":"login","label":"Login","device":"phone"}  a screen in a device frame (phone|tablet|browser). Its parts stack top to bottom in the order you write them.
+{"group":"login-bar","in":"login","layout":"row","dock":"top","color":"#f3f4f6"}  parts side by side: top bars, tab bars, list rows, button pairs. "dock":"top"|"bottom" pins it to the screen edge; "align":"spread" spaces parts evenly (tab bars).
+{"group":"card","in":"products","layout":"stack","color":"#f3f4f6","radius":12}  parts top to bottom inside a surface: cards, list items, sections.
+{"node":"email","in":"login","kind":"input","label":"Email"}  a part. Optional "w","h" in px, "grow":true (takes the rest of a row), "gap"/"pad" on containers.
+Links between screens start at the part you tap: {"edge":["signin","products"],"label":"Sign in"}.
+Make wireframes mid-fidelity: real labels and believable sample data, greys plus one accent colour, headings as kind "text" with size 20 and weight 700, body text size 14.
+Useful kinds for parts: text, button, input, checkbox, toggle, image-placeholder, text-lines, dots, rect (a surface), ellipse (an avatar), and line icons (menu, search, user, bell, gear, home, heart, cart, mail, chat, calendar, lock, pencil, trash, check-circle, arrow-right, image-icon, star-icon).
 
 Rules:
-- ids: short, stable kebab-case. Declare a group before what goes in it, and nodes before the edges that use them.
+- ids: short, stable kebab-case, unique across the whole diagram. Declare a group before what goes in it, and nodes before the edges that use them.
 - Labels at most 4 words. Every node gets a note.
 - A process or story: number the edges in order ("1. Requests access", "2. Adds to group").
 - Usually 5 to 20 nodes and 1 to 5 groups; nest groups only when it helps (subscription > network > subnet).

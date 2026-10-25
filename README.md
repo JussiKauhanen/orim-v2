@@ -14,6 +14,8 @@ Describe what you want to understand ("how does an AD group end up granting acce
 
 Follow-up requests ("add a Key Vault for the app") change only what they need and flash it: green for added, blue for changed. Once you have moved things by hand, later edits keep your arrangement and only place what is new; **Tidy up** (next to the zoom controls, or under a reply) lays the whole diagram out again, hand-drawn parts included. The reply reads like a chat: what the AI is doing, then one line that expands into the list of changes (click one to jump to it), a thumbnail, and the token count.
 
+The AI isn't limited to boxes and icons: any node can be any shape in the library, learned shapes included, with its own colours and text. **Screens** arrange their own parts: ask for "a login, a product list and a profile screen" and it draws phone (or tablet, or browser) frames whose parts stack top to bottom, with rows side by side for top bars, tab bars and list items, bars pinned to the top or bottom, and arrows from the button you tap to the screen it opens. Wireframe parts include text, button, input, checkbox, toggle, image placeholder, text lines, dots, surfaces, avatars and line icons. Screens move with their parts; Tidy up re-stacks them.
+
 **+** in the AI panel takes a picture. **Understand it** (default) reads the picture's meaning into the same editable structure; **Copy the exact look** runs the slower pixel-faithful replication described below. Requests with highlighter marks or a chosen style go to the visual editor.
 
 ## How a replication runs
