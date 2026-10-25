@@ -6,7 +6,7 @@ import { getKind, allKinds } from './kinds.js';
 import { SUGGESTED_FONTS, SYSTEM_FONTS, ensureFont, sizeOptions } from './text.js';
 import { CAPS } from './render.js';
 import { parse as parseColor, hex } from './color.js';
-import { deleteSelection, duplicateSelection, reorder, align, editText } from './editor.js';
+import { deleteSelection, duplicateSelection, reorder, align, editText, groupSelection, ungroupSelection, selectionGroupState } from './editor.js';
 import { icon } from './icons.js';
 
 let root;
@@ -57,6 +57,8 @@ function build() {
   else {
     const shapes = sel.filter(e => e.kind !== 'connector'), conns = sel.filter(e => e.kind === 'connector');
     h += `<div class="ins-head"><b>${sel.length === 1 ? esc((getKind(sel[0].kind) || { name: sel[0].kind }).name) : sel.length + ' selected'}</b><span class="acts"><button data-act="dup" title="Duplicate (⌘D)" aria-label="Duplicate">${icon('copy')}</button><button data-act="front" title="Bring to front (⌘])" aria-label="Bring to front">${icon('front')}</button><button data-act="back" title="Send to back (⌘[)" aria-label="Send to back">${icon('back')}</button><button data-act="del" title="Delete" aria-label="Delete">${icon('trash')}</button></span></div>`;
+    const gs = selectionGroupState();
+    if (gs.canGroup || gs.canUngroup) h += `<section><h4>Group</h4><div class="row">${gs.canGroup ? '<button class="btn" data-act="group" title="Group (⌘G)">Group</button>' : ''}${gs.canUngroup ? '<button class="btn" data-act="ungroup" title="Ungroup (⇧⌘G)">Ungroup</button>' : ''}</div></section>`;
     if (shapes.length > 1) h += `<section><h4>Align</h4><div class="seg">${[['left', '⇤'], ['hcenter', '↔'], ['right', '⇥'], ['top', '⤒'], ['vcenter', '↕'], ['bottom', '⤓'], ['hdist', '⋯'], ['vdist', '⋮']].map(([a, l]) => `<button data-align="${a}" title="${a}">${l}</button>`).join('')}</div></section>`;
     if (shapes.length) h += shapePanel(shapes);
     if (conns.length) h += connectorPanel(conns);
@@ -220,6 +222,8 @@ function onClick(e) {
   switch (b.dataset.act) {
     case 'del': deleteSelection(); break;
     case 'dup': duplicateSelection(); break;
+    case 'group': groupSelection(); break;
+    case 'ungroup': ungroupSelection(); break;
     case 'front': reorder('front'); break;
     case 'back': reorder('back'); break;
     case 'flip': change(() => { for (const c of selected()) if (c.kind === 'connector') { [c.from, c.to] = [c.to, c.from]; if (c.points) c.points.reverse(); } }); break;

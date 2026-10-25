@@ -1,6 +1,6 @@
 // Small selection controls. All edits go through the existing undo/autosave paths.
 import { state, selected, onChange, change, undo, redo } from './store.js';
-import { cam, view, onViewChanged, duplicateSelection, deleteSelection, reorder, editText } from './editor.js';
+import { cam, view, onViewChanged, duplicateSelection, deleteSelection, reorder, editText, groupSelection, ungroupSelection, selectionGroupState } from './editor.js';
 import { bounds, unionBounds } from './geom.js';
 import { getKind } from './kinds.js';
 import { parse, hex } from './color.js';
@@ -15,6 +15,8 @@ const paths = {
   textColor: '<path d="m6 16 6-12 6 12M9 11h6M4 21h16"/>',
   align: '<path d="M4 5h16M4 10h10M4 15h16M4 20h10"/>',
   layers: '<path d="m3 8 9-5 9 5-9 5-9-5Zm0 5 9 5 9-5M3 18l9 5 9-5"/>',
+  group: '<rect x="3" y="3" width="18" height="18" rx="2" stroke-dasharray="3 2.5"/><rect x="7" y="7" width="6" height="5" rx="1"/><rect x="11" y="13" width="6" height="4" rx="1"/>',
+  ungroup: '<rect x="3" y="4" width="9" height="7" rx="1.5"/><rect x="12" y="13" width="9" height="7" rx="1.5"/><path d="M16 4h5v5M3 15v5h5"/>',
 };
 const glyph = name => paths[name] ? `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${paths[name]}</svg>` : icon(name);
 const button = (act, name, label, extra = '') => `<button type="button" data-act="${act}" title="${label}" aria-label="${label}" ${extra}>${glyph(name)}</button>`;
@@ -47,12 +49,13 @@ export function initContextToolbar(stage, { onProperties } = {}) {
     const fill = els.some(canFill), stroke = els.some(canStroke), text = els.some(canText);
     const formatText = text;
     const lines = els.some(el => el.kind === 'connector');
-    const next = JSON.stringify([els.map(el => el.id), fill, stroke, text, formatText, lines]);
+    const groups = selectionGroupState();
+    const next = JSON.stringify([els.map(el => el.id), fill, stroke, text, formatText, lines, groups]);
     if (next !== signature) {
       closePopup(); signature = next;
       const colorButton = (key, label) => button('color-' + key, key, label, `class="ctx-color" data-color="${key}"`).replace('</button>', '<span class="ctx-swatch"></span></button>');
       const select = (key, label, options) => `<select data-field="${key}" aria-label="${label}" title="${label}"><option value="" disabled>${label}</option>${options.map(([v, name]) => `<option value="${v}">${name}</option>`).join('')}</select>`;
-      toolbar.innerHTML = `<div class="ctx-controls">${els.length > 1 ? `<span class="ctx-count">${els.length}</span>` : ''}${fill ? colorButton('fill', 'Fill color') : ''}${stroke ? colorButton('stroke', 'Stroke color') : ''}${formatText ? colorButton('textColor', 'Text color') + '<span class="ctx-separator"></span><select data-field="size" aria-label="Font size" title="Font size"><option value="" disabled>Size</option>' + sizeOptions() + '</select>' + button('bold', 'bold', 'Bold', 'aria-pressed="false"') + select('align', 'Text alignment', [['left', 'Left'], ['center', 'Center'], ['right', 'Right']]) : ''}${text && els.length === 1 ? button('edit', 'text', els[0].text?.content ? 'Edit text' : 'Add text') : ''}${lines ? '<span class="ctx-separator"></span>' + select('route', 'Line route', [['straight', 'Straight'], ['curved', 'Curved'], ['elbow', 'Elbow'], ['spline', 'Spline']]) + select('start', 'Start cap', CAPS.map(c => [c, c === 'none' ? 'Start: none' : 'Start: ' + c])) + select('end', 'End cap', CAPS.map(c => [c, c === 'none' ? 'End: none' : 'End: ' + c])) : ''}<span class="ctx-separator"></span>${button('duplicate', 'copy', 'Duplicate')}${button('layers', 'layers', 'Layers')}${button('delete', 'trash', 'Delete', 'class="ctx-delete"')}<span class="ctx-separator"></span>${button('properties', 'panel-open', 'Properties')}</div><div class="ctx-popup ctx-colors" hidden><div class="ctx-color-grid">${COLORS.map(c => `<button type="button" data-value="${c}" title="${c}" aria-label="${c}" style="background:${c}"></button>`).join('')}</div><div class="ctx-color-custom"><button type="button" data-value="none">No color</button><label>Custom<input type="color" aria-label="Custom color"></label></div></div><div class="ctx-popup ctx-layers" hidden>${button('front', 'front', 'Bring to front')}<span>Bring to front</span>${button('back', 'back', 'Send to back')}<span>Send to back</span></div>`;
+      toolbar.innerHTML = `<div class="ctx-controls">${els.length > 1 ? `<span class="ctx-count">${els.length}</span>` : ''}${fill ? colorButton('fill', 'Fill color') : ''}${stroke ? colorButton('stroke', 'Stroke color') : ''}${formatText ? colorButton('textColor', 'Text color') + '<span class="ctx-separator"></span><select data-field="size" aria-label="Font size" title="Font size"><option value="" disabled>Size</option>' + sizeOptions() + '</select>' + button('bold', 'bold', 'Bold', 'aria-pressed="false"') + select('align', 'Text alignment', [['left', 'Left'], ['center', 'Center'], ['right', 'Right']]) : ''}${text && els.length === 1 ? button('edit', 'text', els[0].text?.content ? 'Edit text' : 'Add text') : ''}${lines ? '<span class="ctx-separator"></span>' + select('route', 'Line route', [['straight', 'Straight'], ['curved', 'Curved'], ['elbow', 'Elbow'], ['spline', 'Spline']]) + select('start', 'Start cap', CAPS.map(c => [c, c === 'none' ? 'Start: none' : 'Start: ' + c])) + select('end', 'End cap', CAPS.map(c => [c, c === 'none' ? 'End: none' : 'End: ' + c])) : ''}<span class="ctx-separator"></span>${groups.canGroup ? button('group', 'group', 'Group (⌘G)') : ''}${groups.canUngroup ? button('ungroup', 'ungroup', 'Ungroup (⇧⌘G)') : ''}${button('duplicate', 'copy', 'Duplicate')}${button('layers', 'layers', 'Layers')}${button('delete', 'trash', 'Delete', 'class="ctx-delete"')}<span class="ctx-separator"></span>${button('properties', 'panel-open', 'Properties')}</div><div class="ctx-popup ctx-colors" hidden><div class="ctx-color-grid">${COLORS.map(c => `<button type="button" data-value="${c}" title="${c}" aria-label="${c}" style="background:${c}"></button>`).join('')}</div><div class="ctx-color-custom"><button type="button" data-value="none">No color</button><label>Custom<input type="color" aria-label="Custom color"></label></div></div><div class="ctx-popup ctx-layers" hidden>${button('front', 'front', 'Bring to front')}<span>Bring to front</span>${button('back', 'back', 'Send to back')}<span>Send to back</span></div>`;
       // The row itself is clickable as well as the layer icon.
       toolbar.querySelectorAll('.ctx-layers span').forEach(label => { label.dataset.act = label.previousElementSibling.dataset.act; });
     }
@@ -132,6 +135,8 @@ export function initContextToolbar(stage, { onProperties } = {}) {
     if (act === 'layers') { openPopup(toolbar.querySelector('.ctx-layers')); return; }
     closePopup();
     if (act === 'duplicate') duplicateSelection();
+    else if (act === 'group') groupSelection();
+    else if (act === 'ungroup') ungroupSelection();
     else if (act === 'delete') deleteSelection();
     else if (act === 'front' || act === 'back') reorder(act);
     else if (act === 'properties') onProperties?.();

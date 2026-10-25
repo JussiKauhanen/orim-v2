@@ -117,7 +117,7 @@ export function render() {
 export function setViewMode(mode, blend = view.blend) { view.mode = mode; view.blend = blend; render(); viewChanged(); }
 
 // ---------- overlay: selection, handles, hover dots, guides ----------
-let hoverId = null, guides = [], marquee = null, connectTarget = null, ghost = null;
+let hoverId = null, guides = [], marquee = null, connectTarget = null, ghost = null, dropTarget = null;
 const HS = () => 8 / cam.z;
 function drawOverlay() {
   if (!overlay || !state.doc) return;
@@ -150,6 +150,14 @@ function drawOverlay() {
   if (dotsFor && dotsFor.kind !== 'connector' && !view.locked && (!drag || drag.type === 'connect' || drag.type === 'cend')) {
     if (connectTarget) { const c = [[0, 0], [dotsFor.w, 0], [dotsFor.w, dotsFor.h], [0, dotsFor.h]].map(([x, y]) => toWorld(dotsFor, x, y)); o += `<polygon points="${c.map(p => p.join(',')).join(' ')}" fill="rgba(79,124,255,0.07)" stroke="#4f7cff" stroke-width="${2 / z}"/>`; }
     for (const [ax, ay] of DOTS) { const p = endpoint({ id: dotsFor.id, ax, ay }, doc); o += `<circle data-h="dot-${ax}-${ay}" data-el="${dotsFor.id}" cx="${p.x}" cy="${p.y}" r="${5 / z}" fill="#fff" stroke="#4f7cff" stroke-width="${1.6 / z}" class="dot"/>`; }
+  }
+  // hovering a grouped element outlines its whole group
+  const hov = hoverId && !drag && doc.byId.get(hoverId);
+  if (hov && hov.group && !state.selection.has(hov.id)) { const b = unionBounds(groupOf(hov).map(e => bounds(e, doc))); o += `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="none" stroke="#4f7cff" stroke-opacity=".55" stroke-width="${sw}" stroke-dasharray="${5 / z} ${4 / z}"/>`; }
+  // while moving: faint outlines on what is carried along, and the box it will land in
+  if (drag?.type === 'move' && drag.moved) {
+    for (const c of drag.orig) { if (state.selection.has(c.id) || c.kind === 'connector') continue; const el = doc.byId.get(c.id); if (!el) continue; const b = bounds(el, doc); o += `<rect x="${b.x}" y="${b.y}" width="${b.w}" height="${b.h}" fill="none" stroke="#4f7cff" stroke-opacity=".35" stroke-width="${1 / z}"/>`; }
+    if (dropTarget) { const c = [[0, 0], [dropTarget.w, 0], [dropTarget.w, dropTarget.h], [0, dropTarget.h]].map(([x, y]) => toWorld(dropTarget, x, y)); o += `<polygon points="${c.map(p => p.join(',')).join(' ')}" fill="rgba(79,124,255,0.06)" stroke="#4f7cff" stroke-width="${2 / z}"/>`; }
   }
   for (const g of guides) o += `<path d="M${g[0]},${g[1]} L${g[2]},${g[3]}" stroke="#ff4fa3" stroke-width="${1 / z}"/>`;
   if (marquee) o += `<rect x="${Math.min(marquee[0], marquee[2])}" y="${Math.min(marquee[1], marquee[3])}" width="${Math.abs(marquee[2] - marquee[0])}" height="${Math.abs(marquee[3] - marquee[1])}" fill="rgba(79,124,255,0.08)" stroke="#4f7cff" stroke-width="${sw}"/>`;
@@ -216,23 +224,38 @@ function onDown(e) {
   // With several things selected, grabbing anywhere inside their bounds moves them all.
   const multi = state.selection.size > 1 && !(e.shiftKey || e.metaKey || e.ctrlKey);
   if (multi && (!el || state.selection.has(el.id) || insideSelection(wx, wy))) {
-    beginChange();
-    if (e.altKey) duplicateSelection(0, true);
-    drag = { type: 'move', sx: wx, sy: wy, orig: selected().map(clone), moved: false };
+    // a click (no drag) on a member of the selected group selects just that member
+    startMove(wx, wy, e.altKey, { drill: el && el.group && state.selection.has(el.id) && isWholeGroup() ? el.id : null });
     return bind();
   }
   if (el) {
-    if (e.shiftKey || e.metaKey || e.ctrlKey) { toggleSelect(el.id); drag = null; return; }
+    if (e.shiftKey || e.metaKey || e.ctrlKey) {
+      const members = groupOf(el).map(m => m.id), on = !state.selection.has(el.id);
+      for (const id of members) on ? state.selection.add(id) : state.selection.delete(id);
+      emit('selection'); drag = null; return;
+    }
+    // Pressing the body of an unselected box that holds other elements starts a rubber band,
+    // so items sitting on a background can be selected; a click still selects the box.
+    if (!state.selection.has(el.id) && !e.altKey && encloses(el) && !inGrabZone(el, wx, wy)) {
+      clearSelection();
+      drag = { type: 'marquee', sx: wx, sy: wy, add: false, pick: el.id, csx: e.clientX, csy: e.clientY };
+      return bind();
+    }
     const wasOnlySelected = state.selection.size === 1 && state.selection.has(el.id);
-    if (!state.selection.has(el.id)) select(el.id);
-    beginChange();
-    if (e.altKey) duplicateSelection(0, true);
-    drag = { type: 'move', sx: wx, sy: wy, orig: selected().map(clone), moved: false, clickEdit: wasOnlySelected && !e.altKey && el.kind !== 'connector' ? el.id : null };
+    if (!state.selection.has(el.id)) select(groupOf(el).map(m => m.id));
+    startMove(wx, wy, e.altKey, { clickEdit: wasOnlySelected && !e.altKey && el.kind !== 'connector' ? el.id : null });
     return bind();
   }
   if (!e.shiftKey) clearSelection();
   drag = { type: 'marquee', sx: wx, sy: wy, add: e.shiftKey };
   bind();
+}
+// Move the selection and whatever its enclosures carry; Alt-drag moves a copy of both.
+function startMove(wx, wy, copy, extra = {}) {
+  beginChange();
+  if (copy) { const c = contentsOf(selected()); if (c.size) select([...c], true); duplicateSelection(0, true); }
+  const moving = movingSet();
+  drag = { type: 'move', sx: wx, sy: wy, orig: moving.map(clone), moved: false, home: enclosureFor(moving), carried: moving.length - state.selection.size, ...extra };
 }
 // Topmost element under a world point: shapes by box, connectors by distance to the line.
 function pickAt(wx, wy) {
@@ -249,6 +272,72 @@ function insideSelection(wx, wy) {
   const b = unionBounds(selected().map(x => bounds(x, state.doc)));
   return b && wx >= b.x && wy >= b.y && wx <= b.x + b.w && wy <= b.y + b.h;
 }
+// ---------- groups and enclosures ----------
+// Elements sharing a `group` id select and move together. A shape that fully encloses
+// elements drawn above it (a container, lane, frame or a plain background box) carries them.
+const groupOf = el => el.group ? state.doc.elements.filter(e => e.group === el.group) : [el];
+const withGroups = ids => { const out = new Set(ids); for (const id of ids) { const el = state.doc.byId.get(id); if (el?.group) for (const m of groupOf(el)) out.add(m.id); } return out; };
+const within = (o, i, pad = 1) => i.x >= o.x - pad && i.y >= o.y - pad && i.x + i.w <= o.x + o.w + pad && i.y + i.h <= o.y + o.h + pad;
+const canEnclose = el => el.kind !== 'connector' && el.kind !== 'text' && !el.hidden;
+// Ids of elements carried by the given shapes, nested enclosures included.
+function contentsOf(list) {
+  const els = state.doc.elements, doc = state.doc, out = new Set();
+  const moving = new Set(list.map(e => e.id));
+  const idx = new Map(els.map((e, i) => [e.id, i]));
+  const queue = list.filter(canEnclose);
+  while (queue.length) {
+    const box = queue.shift(), b = bounds(box, doc), area = b.w * b.h;
+    for (let i = idx.get(box.id) + 1; i < els.length; i++) {
+      const e = els[i]; if (e.hidden || moving.has(e.id) || out.has(e.id)) continue;
+      const eb = bounds(e, doc);
+      if (e.kind === 'connector') { if ([e.from, e.to].every(p => !p.id || moving.has(p.id) || out.has(p.id)) && within(b, eb)) out.add(e.id); continue; }
+      if (eb.w * eb.h < area * 0.98 && within(b, eb)) { out.add(e.id); if (canEnclose(e)) queue.push(e); }
+    }
+  }
+  return out;
+}
+const encloses = el => canEnclose(el) && contentsOf([el]).size > 0;
+// Where an enclosure can be grabbed without first selecting it: its rim, or a container's header.
+function inGrabZone(el, wx, wy) {
+  const [lx, ly] = toLocal(el, wx, wy), m = 10 / cam.z;
+  if (Math.min(lx, ly, el.w - lx, el.h - ly) < m) return true;
+  const kind = getKind(el.kind);
+  if (kind?.category !== 'containers') return false;
+  const tb = textBox(el, kind, scopeFor(el, kind));
+  return lx >= tb.x && ly >= tb.y && lx <= tb.x + tb.w && ly <= tb.y + tb.h;
+}
+// Selection plus everything its enclosures carry.
+function movingSet() { const sel = selected(); const c = contentsOf(sel); return [...sel, ...[...c].map(id => state.doc.byId.get(id))]; }
+// The topmost enclosure (not being moved) that fully contains the moving shapes.
+function enclosureFor(moving) {
+  const shapes = moving.filter(e => e.kind !== 'connector'); if (!shapes.length) return null;
+  const ids = new Set(moving.map(e => e.id)), b = unionBounds(shapes.map(e => bounds(e, state.doc)));
+  const els = state.doc.elements;
+  for (let i = els.length - 1; i >= 0; i--) { const e = els[i]; if (ids.has(e.id) || !canEnclose(e)) continue; const eb = bounds(e, state.doc); if (eb.w * eb.h > b.w * b.h * 1.05 && within(eb, b, 0)) return e; }
+  return null;
+}
+// After a drop, shapes that landed inside an enclosure drawn above them move up to just above it.
+function liftInto(target, moving) {
+  if (!target) return;
+  const els = state.doc.elements, ids = new Set(moving.map(e => e.id)), at = els.indexOf(target);
+  const below = els.filter((e, i) => i < at && ids.has(e.id)); if (!below.length) return;
+  const lift = new Set(below.map(e => e.id)), rest = els.filter(e => !lift.has(e.id));
+  rest.splice(rest.indexOf(target) + 1, 0, ...below);
+  state.doc.elements = rest;
+}
+export function groupSelection() {
+  const sel = selected(); if (sel.length < 2) return;
+  const g = uid('g'); change(() => { for (const el of sel) el.group = g; }); emit('selection');
+}
+export function ungroupSelection() {
+  const sel = selected().filter(el => el.group); if (!sel.length) return;
+  change(() => { for (const el of sel) delete el.group; }); emit('selection');
+}
+// Copies get fresh group ids, so they form their own groups.
+function regroup(list) { const m = new Map(); for (const n of list) if (n.group) { if (!m.has(n.group)) m.set(n.group, uid('g')); n.group = m.get(n.group); } return list; }
+const isWholeGroup = () => { const sel = selected(); return sel.length > 1 && sel[0].group && sel.every(e => e.group === sel[0].group) && groupOf(sel[0]).length === sel.length; };
+export const selectionGroupState = () => { const sel = selected(); return { canGroup: sel.length > 1 && !isWholeGroup(), canUngroup: sel.some(e => e.group) }; };
+
 const isMidVertical = g => { const p = g.pts; const i = Math.floor((p.length - 1) / 2); const a = p[i], b = p[i + 1] || a; return Math.abs(a[0] - b[0]) < 0.5; };
 
 function bind() {
@@ -321,6 +410,8 @@ function onMove(e, fromEdge = false) {
         if (!drag.cpts) drag.cpts = {}; if (!drag.cpts[c.id]) drag.cpts[c.id] = clone(c.points);
         c.points = drag.cpts[c.id].map(p => ({ x: p.x + dx, y: p.y + dy }));
       }
+      const target = enclosureFor(drag.orig.map(o => doc.byId.get(o.id)).filter(Boolean));
+      dropTarget = target && target !== drag.home ? target : null;
       emit('move'); return;
     }
     case 'resize': resizeOne(drag, wx, wy, e.shiftKey); emit('move'); return;
@@ -437,10 +528,12 @@ function onUp(e) {
   const d = drag; drag = null; guides = []; svg.style.cursor = spaceDown || view.tool === 'hand' ? 'grab' : view.placing ? 'crosshair' : '';
   if (!d) return;
   if (d.type === 'marquee') {
-    if (marquee && !cancelled) {
+    // a press on a box's body that did not turn into a drag selects the box
+    if (d.pick && !cancelled && (!marquee || Math.hypot(e.clientX - d.csx, e.clientY - d.csy) < 4)) { const el = state.doc.byId.get(d.pick); if (el) select(groupOf(el).map(m => m.id)); }
+    else if (marquee && !cancelled) {
       const [x0, y0, x1, y1] = marquee, r = { x: Math.min(x0, x1), y: Math.min(y0, y1), w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
-      const ids = state.doc.elements.filter(el => { if (el.hidden) return false; const b = bounds(el, state.doc); return b.x >= r.x && b.y >= r.y && b.x + b.w <= r.x + r.w && b.y + b.h <= r.y + r.h; }).map(el => el.id);
-      select(ids, d.add);
+      const ids = state.doc.elements.filter(el => !el.hidden && within(r, bounds(el, state.doc), 0)).map(el => el.id);
+      select([...withGroups(ids)], d.add);
     }
     marquee = null; drawOverlay(); return;
   }
@@ -456,9 +549,13 @@ function onUp(e) {
   }
   if (d.type === 'cend') connectTarget = null;
   if (d.type === 'pan') { drawOverlay(); return; }
+  if (d.type === 'move') {
+    if (d.moved && !cancelled) liftInto(dropTarget || enclosureFor(d.orig.map(o => state.doc.byId.get(o.id)).filter(Boolean)), d.orig.map(o => state.doc.byId.get(o.id)).filter(Boolean));
+    dropTarget = null;
+  }
   endChange();
   // a plain click on the shape that was already selected edits its text in place
-  if (d.type === 'move' && !d.moved && d.clickEdit && !cancelled) editText(d.clickEdit);
+  if (d.type === 'move' && !d.moved && !cancelled) { if (d.drill) select(d.drill); else if (d.clickEdit) editText(d.clickEdit); }
 }
 
 // Click on a dot: add a copy of the shape on that side, connected.
@@ -607,6 +704,7 @@ export function paste(els = clipboard, offset = 24) {
     else { n.x += offset; n.y += offset; }
     return n;
   });
+  regroup(out);
   change(d => d.elements.push(...out));
   select(out.map(e => e.id));
   clipboard = out.map(clone);
@@ -618,6 +716,7 @@ export function duplicateSelection(offset = 24, inPlace = false) {
   for (const c of state.doc.elements) if (c.kind === 'connector' && !ids.has(c.id) && c.from.id && c.to.id && ids.has(c.from.id) && ids.has(c.to.id)) els.push(clone(c));
   const map = new Map(els.map(e => [e.id, uid()]));
   const out = els.map(e => { const n = clone(e); n.id = map.get(e.id); if (n.kind === 'connector') { for (const k of ['from', 'to']) if (n[k].id && map.has(n[k].id)) n[k].id = map.get(n[k].id); else if (!n[k].id) n[k] = { x: n[k].x + offset, y: n[k].y + offset }; if (n.points) n.points = n.points.map(p => ({ x: p.x + offset, y: p.y + offset })); } else { n.x += offset; n.y += offset; } return n; });
+  regroup(out);
   if (inPlace) { state.doc.elements.push(...out); select(out.map(e => e.id)); return; }
   change(d => d.elements.push(...out)); select(out.map(e => e.id));
 }
@@ -664,6 +763,7 @@ function onKey(e) {
   if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
   if (view.locked) return;
   if (mod && e.key.toLowerCase() === 'd') { e.preventDefault(); duplicateSelection(); return; }
+  if (mod && e.key.toLowerCase() === 'g') { e.preventDefault(); e.shiftKey ? ungroupSelection() : groupSelection(); return; }
   if (mod && e.key.toLowerCase() === 'c') { copySelection(); return; }
   if (mod && e.key.toLowerCase() === 'x') { copySelection(); deleteSelection(); return; }
   if (mod && e.key.toLowerCase() === 'v') { e.preventDefault(); paste(); return; }
@@ -672,7 +772,13 @@ function onKey(e) {
   if (mod && e.key === '-') { e.preventDefault(); zoomBy(1 / 1.2); return; }
   if (mod && e.key === '0') { e.preventDefault(); fitPage(); return; }
   if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); deleteSelection(); return; }
-  if (e.key === 'Escape') { if (drag?.standalone) onUp({ type: 'pointercancel' }); setTool('select'); clearSelection(); return; }
+  if (e.key === 'Escape') {
+    if (drag?.standalone) onUp({ type: 'pointercancel' }); setTool('select');
+    // from a member picked inside a group, Escape steps back out to the whole group
+    const sel = selected(), g = sel[0]?.group;
+    if (g && sel.every(x => x.group === g) && !isWholeGroup() && groupOf(sel[0]).length > 1) select(groupOf(sel[0]).map(x => x.id)); else clearSelection();
+    return;
+  }
   if (!mod && !e.altKey && !e.shiftKey && ['v', 'h'].includes(e.key.toLowerCase())) { e.preventDefault(); setTool(e.key.toLowerCase() === 'h' ? 'hand' : 'select'); return; }
   if (e.key === ']') { reorder(mod ? 'front' : 'forward'); return; }
   if (e.key === '[') { reorder(mod ? 'back' : 'backward'); return; }
@@ -680,7 +786,7 @@ function onKey(e) {
   if (e.key.startsWith('Arrow') && state.selection.size) {
     e.preventDefault(); const s = e.shiftKey ? 10 : 1;
     const dx = e.key === 'ArrowLeft' ? -s : e.key === 'ArrowRight' ? s : 0, dy = e.key === 'ArrowUp' ? -s : e.key === 'ArrowDown' ? s : 0;
-    change(() => { for (const el of selected()) { if (el.kind === 'connector') { for (const k of ['from', 'to']) if (!el[k].id) el[k] = { x: el[k].x + dx, y: el[k].y + dy }; if (el.points) el.points = el.points.map(p => ({ x: p.x + dx, y: p.y + dy })); } else { el.x += dx; el.y += dy; } } });
+    change(() => { for (const el of movingSet()) { if (el.kind === 'connector') { for (const k of ['from', 'to']) if (!el[k].id) el[k] = { x: el[k].x + dx, y: el[k].y + dy }; if (el.points) el.points = el.points.map(p => ({ x: p.x + dx, y: p.y + dy })); } else { el.x += dx; el.y += dy; } } });
     return;
   }
   if (!mod && !e.altKey && e.key.length === 1 && state.selection.size === 1) {
