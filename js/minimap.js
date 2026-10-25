@@ -2,6 +2,7 @@
 import { state, onChange } from './store.js';
 import { bounds, unionBounds, connectorPoints } from './geom.js';
 import { displayDoc } from './theme.js';
+import { hasPage } from './render.js';
 import { icon } from './icons.js';
 
 export function initMinimap(stage, { cam, view, applyCamera, onViewChanged, beforeNavigate }) {
@@ -35,7 +36,8 @@ export function initMinimap(stage, { cam, view, applyCamera, onViewChanged, befo
     const doc = displayDoc(state.doc, view.mode === 'diagram'), r = stage.getBoundingClientRect();
     const viewport = { x: cam.x, y: cam.y, w: r.width / cam.z, h: r.height / cam.z };
     const visible = doc.elements.filter(e => !e.hidden);
-    const content = unionBounds([{ x: 0, y: 0, w: doc.page.w, h: doc.page.h }, ...visible.map(e => bounds(e, doc))]);
+    const page = hasPage(doc);
+    const content = unionBounds([...(page || !visible.length ? [{ x: 0, y: 0, w: doc.page.w, h: doc.page.h }] : []), ...visible.map(e => bounds(e, doc))]);
     const tolerance = 2 / cam.z;
     const fits = content.x >= viewport.x - tolerance && content.y >= viewport.y - tolerance &&
       content.x + content.w <= viewport.x + viewport.w + tolerance && content.y + content.h <= viewport.y + viewport.h + tolerance;
@@ -53,11 +55,13 @@ export function initMinimap(stage, { cam, view, applyCamera, onViewChanged, befo
     const ctx = canvas.getContext('2d'); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const css = getComputedStyle(panel), accent = css.getPropertyValue('--accent').trim() || '#4f6bff';
     const muted = css.getPropertyValue('--muted').trim() || '#6a737d';
-    ctx.fillStyle = css.getPropertyValue('--stage').trim() || '#eceef1'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = doc.page.background || '#ffffff';
-    ctx.fillRect(X(0), Y(0), doc.page.w * s, doc.page.h * s);
-    ctx.strokeStyle = css.getPropertyValue('--line2').trim() || '#d3d8de'; ctx.lineWidth = 0.75;
-    ctx.strokeRect(X(0), Y(0), doc.page.w * s, doc.page.h * s);
+    ctx.fillStyle = css.getPropertyValue('--board').trim() || '#f7f7f5'; ctx.fillRect(0, 0, W, H);
+    if (page) {
+      ctx.fillStyle = doc.page.background || '#ffffff';
+      ctx.fillRect(X(0), Y(0), doc.page.w * s, doc.page.h * s);
+      ctx.strokeStyle = css.getPropertyValue('--line2').trim() || '#d3d8de'; ctx.lineWidth = 0.75;
+      ctx.strokeRect(X(0), Y(0), doc.page.w * s, doc.page.h * s);
+    }
     for (const el of visible) {
       ctx.fillStyle = el.style?.fill && el.style.fill !== 'none' ? el.style.fill : muted;
       ctx.strokeStyle = el.style?.stroke && el.style.stroke !== 'none' ? el.style.stroke : muted;

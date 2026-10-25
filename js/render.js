@@ -3,7 +3,7 @@
 
 import { getKind, scopeFor, shapeSvg, textBox } from './kinds.js';
 import { textSvg, layout } from './text.js';
-import { connectorPoints, connectorPath } from './geom.js';
+import { connectorPoints, connectorPath, bounds, unionBounds } from './geom.js';
 import { parse as parseColor } from './color.js';
 
 const f = v => Math.round(v * 100) / 100;
@@ -156,6 +156,23 @@ function imageSvg(el, sc) {
 }
 
 // Page background with optional dot / grid / line pattern.
+// Only diagrams rebuilt from an image have a fixed page (it lines up with the source).
+// Everything else lives on an open board; exports and thumbnails frame the content.
+export const hasPage = doc => !!doc.source;
+export function framed(doc, margin = 40) {
+  if (hasPage(doc)) return doc;
+  const d = indexDoc(JSON.parse(JSON.stringify(doc, (k, v) => k === 'byId' ? undefined : v)));
+  const b = unionBounds(d.elements.filter(e => !e.hidden && !e.ghost).map(e => bounds(e, d)));
+  if (!b) return d;
+  const dx = margin - b.x, dy = margin - b.y;
+  for (const e of d.elements) {
+    if (e.kind === 'connector') { for (const k of ['from', 'to']) if (e[k] && !e[k].id) e[k] = { ...e[k], x: e[k].x + dx, y: e[k].y + dy }; if (e.points) e.points = e.points.map(p => ({ x: p.x + dx, y: p.y + dy })); }
+    else { e.x += dx; e.y += dy; }
+  }
+  d.page = { ...d.page, w: Math.ceil(b.w + margin * 2), h: Math.ceil(b.h + margin * 2), pattern: null };
+  return indexDoc(d);
+}
+
 export function pageSvg(doc) {
   const p = doc.page || {}; const w = p.w || 1200, h = p.h || 800;
   const bg = p.background || '#ffffff';

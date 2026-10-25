@@ -2,7 +2,7 @@
 // connectors (drag from a shape's dots, re-attach ends, bend), text editing and snapping.
 
 import { state, change, beginChange, endChange, emit, onChange, select, clearSelection, toggleSelect, selected, makeElement, uid, clone, undo, redo } from './store.js';
-import { elementSvg, pageSvg, indexDoc } from './render.js';
+import { elementSvg, pageSvg, indexDoc, hasPage } from './render.js';
 import { getKind, scopeFor, textBox, onKindsChanged } from './kinds.js';
 import { bounds, unionBounds, toLocal, toWorld, connectorPoints, endpoint, distToPoly, rotatePt } from './geom.js';
 import { onFontsChanged, ensureFont, fontStack, fitText } from './text.js';
@@ -23,7 +23,7 @@ const viewChanged = () => listeners.forEach(f => f());
 
 export function initEditor(root) {
   stage = root;
-  stage.innerHTML = `<svg id="canvas" xmlns="${NS}"><g id="world"><g id="pageLayer"></g><g id="content"></g><image id="sourceImg" pointer-events="none" style="display:none"/><g id="overlay"></g></g></svg><textarea id="textEd" spellcheck="false" hidden></textarea><div id="zoomBadge"></div>`;
+  stage.innerHTML = `<svg id="canvas" xmlns="${NS}"><g id="world"><rect id="gridLayer" pointer-events="none"/><g id="pageLayer"></g><g id="content"></g><image id="sourceImg" pointer-events="none" style="display:none"/><g id="overlay"></g></g></svg><textarea id="textEd" spellcheck="false" hidden></textarea><div id="zoomBadge"></div>`;
   svg = stage.querySelector('#canvas'); world = svg.querySelector('#world'); pageLayer = svg.querySelector('#pageLayer');
   content = svg.querySelector('#content'); overlay = svg.querySelector('#overlay'); sourceImg = svg.querySelector('#sourceImg');
   textEd = stage.querySelector('#textEd');
@@ -52,16 +52,36 @@ export function initEditor(root) {
 export function applyCamera() {
   quickInsert?.close();
   world.setAttribute('transform', `matrix(${cam.z},0,0,${cam.z},${-cam.x * cam.z},${-cam.y * cam.z})`);
+  drawGrid();
   const zb = stage.querySelector('#zoomBadge'); if (zb) zb.textContent = Math.round(cam.z * 100) + '%';
   const fit = document.getElementById('zoomFit'); if (fit) fit.textContent = Math.round(cam.z * 100) + '%';
   drawOverlay(); placeTextEd(); viewChanged();
+}
+// The board's dot grid lives in world space, so it pans and zooms with the diagram. Dots keep
+// their screen size; when they would crowd together, every second one drops out.
+let gridKey = '';
+function drawGrid() {
+  const grid = svg.querySelector('#gridLayer'); if (!grid) return;
+  let gap = 24; while (gap * cam.z < 16) gap *= 2;
+  const r = svg.getBoundingClientRect(), x = Math.floor(cam.x / gap) * gap - gap, y = Math.floor(cam.y / gap) * gap - gap;
+  const key = gap + '|' + cam.z.toFixed(4);
+  if (key !== gridKey) {
+    gridKey = key;
+    let defs = svg.querySelector('#gridDefs');
+    if (!defs) { defs = document.createElementNS(NS, 'defs'); defs.id = 'gridDefs'; svg.prepend(defs); }
+    defs.innerHTML = `<pattern id="boardDots" width="${gap}" height="${gap}" patternUnits="userSpaceOnUse"><circle cx="0" cy="0" r="${1.15 / cam.z}" class="board-dot"/><circle cx="${gap}" cy="0" r="${1.15 / cam.z}" class="board-dot"/><circle cx="0" cy="${gap}" r="${1.15 / cam.z}" class="board-dot"/><circle cx="${gap}" cy="${gap}" r="${1.15 / cam.z}" class="board-dot"/></pattern>`;
+  }
+  grid.setAttribute('x', x); grid.setAttribute('y', y);
+  grid.setAttribute('width', r.width / cam.z + gap * 3); grid.setAttribute('height', r.height / cam.z + gap * 3);
+  grid.setAttribute('fill', 'url(#boardDots)');
 }
 export function fitPage(pad = 40) {
   stopEdgeTracking();
   if (!state.doc || !stage) return;
   const r = stage.getBoundingClientRect(); if (!r.width) return;
   const p = state.doc.page;
-  const b = unionBounds([{ x: 0, y: 0, w: p.w, h: p.h }, ...state.doc.elements.filter(e => e.kind !== 'connector').map(e => bounds(e, state.doc))]) || { x: 0, y: 0, w: p.w, h: p.h };
+  const shapes = state.doc.elements.filter(e => e.kind !== 'connector' && !e.ghost).map(e => bounds(e, state.doc));
+  const b = unionBounds([...(hasPage(state.doc) || !shapes.length ? [{ x: 0, y: 0, w: p.w, h: p.h }] : []), ...shapes]);
   cam.z = Math.min((r.width - pad * 2) / b.w, (r.height - pad * 2) / b.h, 4);
   cam.x = b.x - (r.width / cam.z - b.w) / 2; cam.y = b.y - (r.height / cam.z - b.h) / 2;
   applyCamera();
@@ -90,18 +110,24 @@ function flashTick(now) {
 // Move elements to new boxes over a short ease-out, then call done.
 let animDone = null;
 export function animateTo(targets, ms = 240, done) {
-  cancelAnimationFrame(animFrame); animDone?.(); animDone = done;
+  cancelAnimationFrame(animFrame); animDone?.(); animDone = null;
   const doc = state.doc, from = new Map();
   for (const [id] of targets) { const el = doc.byId.get(id); if (el) from.set(id, { x: el.x, y: el.y, w: el.w, h: el.h }); }
   const apply = k => { for (const [id, f] of from) { const el = doc.byId.get(id), t = targets.get(id); if (!el) continue; for (const p of ['x', 'y', 'w', 'h']) el[p] = f[p] + (t[p] - f[p]) * k; } emit('move'); };
   // hidden tabs get no animation frames: jump straight to the end so the AI flow never waits
   if (matchMedia('(prefers-reduced-motion: reduce)').matches || !ms || document.hidden) { animDone = null; apply(1); done?.(); return; }
   const t0 = performance.now();
+  let over = false;
+  const finish = () => { if (over) return; over = true; cancelAnimationFrame(animFrame); clearTimeout(guard); if (state.doc === doc) apply(1); if (animDone === done) animDone = null; done?.(); };
   const tick = now => {
-    if (state.doc !== doc) { animDone = null; done?.(); return; }
+    if (over) return;
+    if (state.doc !== doc) return finish();
     const t = Math.min(1, (now - t0) / ms); apply(1 - (1 - t) ** 3);
-    if (t < 1) animFrame = requestAnimationFrame(tick); else { animDone = null; done?.(); }
+    if (t < 1) animFrame = requestAnimationFrame(tick); else finish();
   };
+  // background pages may get no frames at all: a timer makes sure the move always completes
+  const guard = setTimeout(finish, ms + 150);
+  animDone = finish;
   animFrame = requestAnimationFrame(tick);
 }
 
@@ -136,7 +162,7 @@ export function render() {
   if (!state.doc || !content) return;
   indexDoc(state.doc);
   const doc = displayDoc(state.doc, view.mode === 'diagram');
-  pageLayer.innerHTML = pageSvg(doc);
+  pageLayer.innerHTML = hasPage(doc) ? pageSvg(doc) : '';
   const seen = new Set(); let prev = null;
   for (const el of doc.elements) {
     seen.add(el.id);

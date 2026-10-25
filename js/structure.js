@@ -173,12 +173,12 @@ function loadElk() {
 export const fullyStructured = doc => !doc.manualLayout && doc.elements.every(e => e.st || e.ghost);
 
 // Compute positions for structured content. Returns element boxes and link routes in page space.
-export async function computeLayout(doc) {
+export async function computeLayout(doc, { dir: want } = {}) {
   const engine = await loadElk();
   const els = doc.elements.filter(e => e.st && !e.hidden);
   const shapes = els.filter(e => e.st !== 'edge'), ids = new Set(shapes.map(e => e.id));
   const node = new Map();
-  const dir = doc.layoutDir === 'down' ? 'DOWN' : 'RIGHT';
+  const dir = (want || doc.layoutDir) === 'down' ? 'DOWN' : 'RIGHT';
   for (const el of shapes) {
     const icon = isIcon(el);
     const n = { id: el.id, width: el.w, height: el.h, children: [], layoutOptions: {} };
@@ -190,7 +190,7 @@ export async function computeLayout(doc) {
   const root = { id: '__root', children: [], edges: [], layoutOptions: {
     'elk.algorithm': 'layered', 'elk.direction': dir, 'elk.hierarchyHandling': 'INCLUDE_CHILDREN', 'elk.edgeRouting': 'ORTHOGONAL',
     'elk.layered.spacing.nodeNodeBetweenLayers': '64', 'elk.spacing.nodeNode': '36', 'elk.spacing.edgeNode': '20', 'elk.spacing.edgeEdge': '12',
-    'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX', 'elk.layered.wrapping.strategy': 'MULTI_EDGE', 'elk.aspectRatio': '1.6', 'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES', 'elk.spacing.componentComponent': '60',
+    'elk.layered.nodePlacement.strategy': 'NETWORK_SIMPLEX', 'elk.layered.considerModelOrder.strategy': 'NODES_AND_EDGES', 'elk.spacing.componentComponent': '60',
   } };
   for (const el of shapes) (el.parent && ids.has(el.parent) && node.get(el.parent).children ? node.get(el.parent) : root).children.push(node.get(el.id));
   for (const g of shapes) { const n = node.get(g.id); if (g.st === 'group' && !n.children.length) { n.width = Math.max(160, textWidth(label(g), 13) + 40); n.height = 90; } }
@@ -206,6 +206,15 @@ export async function computeLayout(doc) {
     routes.set(e.id, [s.startPoint, ...(s.bendPoints || []), s.endPoint].map(p => ({ x: p.x + ox, y: p.y + oy })));
   }
   return { boxes, routes };
+}
+
+// Lay out both ways and keep the one that shows larger in a view of this aspect ratio
+// (width / height). The model's own choice wins unless the other is clearly better.
+export async function bestLayout(doc, aspect = 1.6) {
+  const pref = doc.layoutDir === 'down' ? 'down' : 'right', other = pref === 'down' ? 'right' : 'down';
+  const [a, b] = await Promise.all([computeLayout(doc, { dir: pref }), computeLayout(doc, { dir: other })]);
+  const fit = lay => { const bs = [...lay.boxes.values()]; if (!bs.length) return 1; const w = Math.max(...bs.map(v => v.x + v.w)) - Math.min(...bs.map(v => v.x)), h = Math.max(...bs.map(v => v.y + v.h)) - Math.min(...bs.map(v => v.y)); return Math.min(aspect / w, 1 / h); };
+  return fit(b) > fit(a) * 1.05 ? { lay: b, dir: other } : { lay: a, dir: pref };
 }
 
 // Apply a layout. With `keep`, elements already on the canvas stay where they are and new ones

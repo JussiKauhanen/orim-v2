@@ -5,7 +5,7 @@ import { initEditor, fitPage, zoomBy, setViewMode, view, onViewChanged, render }
 import { initInspector } from './inspector.js';
 import { initPalette, kindPreview, setPaletteCollapsed } from './palette.js';
 import { initLibrary, lib, onLibraryChanged, saveTemplate, deleteTemplate, exportBundle, importBundle, removeLesson, forgetKind } from './library.js';
-import { sceneSvg, indexDoc } from './render.js';
+import { sceneSvg, indexDoc, framed } from './render.js';
 import { ensureFont } from './text.js';
 import { initAIChat } from './ai/chat-ui.js';
 import { replicate, refine, onRun, current, stop, styleGuide } from './ai/replicate.js';
@@ -39,7 +39,7 @@ function toast(msg, ms = 2600) { const t = $('#toast'); t.textContent = msg; t.h
 function thumb(doc, w = 260, h = 170) {
   const d = indexDoc(clone(doc));
   for (const e of d.elements) if (e.text?.font) ensureFont(e.text.font);
-  const svg = sceneSvg(displayDoc(d));
+  const svg = sceneSvg(displayDoc(framed(d)));
   return svg.replace(/^<svg ([^>]*?)width="[^"]*" height="[^"]*"/, `<svg $1width="100%" height="100%" preserveAspectRatio="xMidYMid meet"`);
 }
 
@@ -179,8 +179,8 @@ function openLibrary() {
 function download(name, data, type) { const a = document.createElement('a'); a.href = typeof data === 'string' && data.startsWith('data:') ? data : URL.createObjectURL(new Blob([data], { type })); a.download = name; a.click(); }
 async function exportAs(kind) {
   const d = state.doc, base = (d.name || 'diagram').replace(/[^\w-]+/g, '-').slice(0, 50);
-  if (kind === 'svg') download(base + '.svg', await svgWithFonts(d), 'image/svg+xml');
-  if (kind === 'png') { const c = await renderToCanvas(d, { scale: 2 }); download(base + '.png', c.toDataURL('image/png')); }
+  if (kind === 'svg') download(base + '.svg', await svgWithFonts(framed(d)), 'image/svg+xml');
+  if (kind === 'png') { const c = await renderToCanvas(framed(d), { scale: 2 }); download(base + '.png', c.toDataURL('image/png')); }
   if (kind === 'json') download(base + '.orim.json', JSON.stringify(d, (k, v) => k === 'byId' ? undefined : v), 'application/json');
   if (kind === 'template') { const t = await saveTemplate(d, { name: d.name }); toast(`Saved "${t.name}" as a template${lib.folder ? ' (also written to the folder)' : ''}`); }
 }

@@ -1,7 +1,7 @@
 :root {
   --bg: #f6f7f9; --panel: #ffffff; --line: #e3e6ea; --line2: #d3d8de; --text: #1c2128; --muted: #6a737d;
   --accent: #4f6bff; --accent-soft: #eef1ff; --danger: #d9363e; --ok: #1f9d55; --warn: #c27c0e;
-  --stage: #eceef1; --r: 8px; --font: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+  --stage: #eceef1; --board: #f7f7f5; --board-dot: #c4c7cd; --r: 8px; --font: Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 13px/1.45 var(--font); }
@@ -82,7 +82,8 @@ code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; font-size: 12p
 .pal-item svg { pointer-events: none; }
 .pal-more { width: 100%; margin-top: 4px; border: 0; background: var(--chip-bg); border-radius: 6px; padding: 5px; cursor: pointer; color: var(--muted); font-size: 12px; }
 
-.stage { grid-area: stage; position: relative; overflow: hidden; background: var(--stage); background-image: radial-gradient(#d6d9de 1px, transparent 1px); background-size: 22px 22px; }
+.stage { grid-area: stage; position: relative; overflow: hidden; background: var(--board); }
+.board-dot { fill: var(--board-dot); }
 #canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; user-select: none; outline: none; }
 #canvas #pageLayer > rect:first-child { filter: drop-shadow(0 1px 3px rgba(0,0,0,.12)); }
 #textEd { position: absolute; z-index: 4; border: 0; outline: 1.5px solid var(--accent); background: rgba(255,255,255,.0); resize: none; overflow: hidden; padding: 0; margin: 0; caret-color: var(--accent); white-space: pre-wrap; word-break: break-word; }
@@ -245,10 +246,9 @@ code { background: #f0f2f5; padding: 1px 5px; border-radius: 4px; font-size: 12p
 :root { --hover: #eef0f3; --field: #ffffff; --chip-bg: #f3f4f6; }
 :root[data-theme="dark"] {
   --bg: #14161b; --panel: #1c1f26; --line: #2b3039; --line2: #3a404b; --text: #e7e9ee; --muted: #9aa3b0;
-  --accent: #6b83ff; --accent-soft: #252d52; --stage: #101217; --hover: #262a33; --field: #23272f; --chip-bg: #262a33;
+  --accent: #6b83ff; --accent-soft: #252d52; --stage: #101217; --board: #15171c; --board-dot: #3a3f49; --hover: #262a33; --field: #23272f; --chip-bg: #262a33;
   color-scheme: dark;
 }
-:root[data-theme="dark"] .stage { background-image: radial-gradient(#22262e 1px, transparent 1px); }
 :root[data-theme="dark"] .btn, :root[data-theme="dark"] .seg button, :root[data-theme="dark"] .crow button,
 :root[data-theme="dark"] .f input, :root[data-theme="dark"] .f select, :root[data-theme="dark"] .inspector textarea,
 :root[data-theme="dark"] .dlg textarea, :root[data-theme="dark"] .dlg input[type=text], :root[data-theme="dark"] .dlg input[type=password],
